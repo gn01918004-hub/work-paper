@@ -18,7 +18,7 @@
 
 ## 版本
 
-目前版本 **v3.1.0**。各版本的更新重點見 [CHANGELOG.md](CHANGELOG.md)，GitHub 上每個版本都有對應的標籤（Tags）。
+目前版本 **v3.1.0**（側欄左下角也會顯示）。各版本的更新重點見 [CHANGELOG.md](CHANGELOG.md)；每個版本對應一個 commit，標題以版本號開頭。
 
 | 版本 | 重點 |
 |---|---|
