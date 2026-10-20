@@ -611,12 +611,15 @@ a.btn{text-decoration:none}
 <script>
 (() => {
 const BUILD = "artifact";
-const VERSION = "3.3.0";
+const VERSION = "3.3.1";
 /* 離線版檢查更新：讀取 GitHub 公開倉庫的版本檔，新版本以 zip 提供下載 */
 const UPDATE_URL = "https://raw.githubusercontent.com/gn01918004-hub/work-paper/main/release/version.json";
 const DOWNLOAD_URL = "https://github.com/gn01918004-hub/work-paper/raw/main/release/survey-schedule.zip";
 /* 更新紀錄（與 CHANGELOG.md 同步）：第一筆為目前版本 */
 const CHANGELOG = [
+  {v:"3.3.1", date:"2026-10-20", title:"未排日期的案件一併結案", items:[
+    "一次性整理：排定日期「未排」且還沒結案的案件改為「完成」，通知未寄出的改為「已寄出」（不需要通知的維持不變，撤回、駁回、延期的案件不動）",
+    "已用過 v3.3.0 的電腦也會補做這項整理，之前整理過的案件不受影響"]},
   {v:"3.3.0", date:"2026-10-20", title:"新版本通知、舊案件一次結案", items:[
     "離線版開啟時自動檢查新版本，有新版會跳出通知，詢問是否下載",
     "通知視窗可先下載備份、稍後再說，或略過這個版本",
@@ -761,14 +764,19 @@ function writeFailed(e){
   else toast("儲存失敗，請稍後再試");
 }
 
-/* 一次性整理（v3.3.0）：今天以前還沒結案的案件改為完成，通知未寄出改為已寄出 */
-const MIG_PAST = "3.3.0-past-complete";
+/* 一次性整理：符合條件的案件改為完成，通知未寄出改為已寄出；每項只執行一次（記錄在 migrations） */
+const MIGRATIONS = [
+  {key:"3.3.0-past-complete", label:"今天以前", pick:c => c.sched && c.sched < TODAY},  // v3.3.0：排定日期在今天以前
+  {key:"3.3.1-unscheduled-complete", label:"未排日期", pick:c => !c.sched},             // v3.3.1：排定日期未排
+];
 let migRan = false;
 async function runMigrations(){
-  if (migRan || !S.canWrite || S.migrations.includes(MIG_PAST)) return;
+  if (migRan || !S.canWrite) return;
+  const todo = MIGRATIONS.filter(m => !S.migrations.includes(m.key));
+  if (!todo.length) return;
   migRan = true;
-  const fix = real().filter(c => c.sched && c.sched < TODAY && (!isClosed(c) || needsNoticeFix(c)));
-  S.migrations = [...S.migrations, MIG_PAST];
+  const fix = real().filter(c => todo.some(m => m.pick(c)) && (!isClosed(c) || (DONE.has(c.status) && needsNoticeFix(c))));  // 撤回、駁回、延期不動
+  S.migrations = [...S.migrations, ...todo.map(m => m.key)];
   try {
     for (const c of fix) {
       const n = {...c};
@@ -777,7 +785,7 @@ async function runMigrations(){
       await saveCase(n);
     }
     await saveLists();
-    if (fix.length) toast(`已將 ${fix.length} 筆今天以前的案件改為完成、通知已寄出`);
+    if (fix.length) toast(`已將 ${fix.length} 筆${todo.map(m => m.label).join("及")}的案件改為完成、通知已寄出`);
   } catch(e){ writeFailed(e); }
 }
 const needsNoticeFix = c => c.notice !== "已寄出" && c.notice !== "不需要通知";
