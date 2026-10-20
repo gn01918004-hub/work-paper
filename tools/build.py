@@ -3,7 +3,7 @@
 用法：python3 tools/build.py            （內建 data/seed.json 的資料）
       python3 tools/build.py --no-seed  （第一次開啟為空白）
 """
-import pathlib, sys, zipfile
+import json, pathlib, re, sys, zipfile
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 SRC = ROOT / "src" / "survey-cases.html"
@@ -13,6 +13,9 @@ OUT_DIR = ROOT / "dist" / "測量案件排程"
 OUT = OUT_DIR / "測量案件排程.html"
 GUIDE = ROOT / "dist" / "使用說明.txt"
 ZIP = ROOT / "dist" / "測量案件排程.zip"
+# 發佈給離線版「檢查更新」用：程式讀 release/version.json，下載 release/survey-schedule.zip
+RELEASE = ROOT / "release"
+REPO_RAW = "https://github.com/gn01918004-hub/work-paper/raw/main/release/survey-schedule.zip"
 
 CDN_TAG = '<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>'
 
@@ -41,6 +44,27 @@ def build(seed: bool) -> None:
         for f in (OUT, OUT_DIR / GUIDE.name):
             z.write(f, f"測量案件排程/{f.name}")
     print(f"built {OUT.relative_to(ROOT)} ({OUT.stat().st_size:,} bytes), {ZIP.relative_to(ROOT)}")
+    if seed:
+        release(html)
+
+
+def latest_entry(html: str) -> dict:
+    """從原始碼的 CHANGELOG 陣列取出第一筆（目前版本）。"""
+    version = re.search(r'const VERSION = "([\d.]+)";', html).group(1)
+    block = re.search(r"const CHANGELOG = \[(.*?)\n\];", html, re.S).group(1)
+    first = re.search(r"\{v:\"([\d.]+)\", date:\"([^\"]*)\", title:\"([^\"]*)\", items:\[(.*?)\]\}", block, re.S)
+    assert first and first.group(1) == version, "CHANGELOG 第一筆必須是目前版本 VERSION"
+    items = re.findall(r'"((?:[^"\\]|\\.)*)"', first.group(4))
+    return {"version": version, "date": first.group(2), "title": first.group(3), "items": items}
+
+
+def release(html: str) -> None:
+    RELEASE.mkdir(exist_ok=True)
+    info = latest_entry(html)
+    info["download"] = REPO_RAW
+    (RELEASE / "version.json").write_text(json.dumps(info, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    (RELEASE / "survey-schedule.zip").write_bytes(ZIP.read_bytes())
+    print(f"release v{info['version']}: release/version.json, release/survey-schedule.zip")
 
 
 if __name__ == "__main__":
