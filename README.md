@@ -19,10 +19,11 @@
 
 ## 版本
 
-目前版本 **v3.3.1**。在畫面左下角點版本號，可以看到本版新功能和完整的更新歷程。各版本的更新重點見 [CHANGELOG.md](CHANGELOG.md)。倉庫的第一個 commit 是 v3.0.0，之後每個版本的 commit 標題都以版本號開頭。
+目前版本 **v3.3.2**。在畫面左下角點版本號，可以看到本版新功能和完整的更新歷程。各版本的更新重點見 [CHANGELOG.md](CHANGELOG.md)。倉庫的第一個 commit 是 v3.0.0，之後每個版本的 commit 標題都以版本號開頭。
 
 | 版本 | 重點 |
 |---|---|
+| v3.3.2 | 散佈版不含案件資料（保留代理人通訊錄等常用資料），使用說明改寫 |
 | v3.3.1 | 未排日期的案件一併改為完成、通知已寄出 |
 | v3.3.0 | 離線版開啟時通知新版本並詢問是否下載；今天以前的案件一次結案 |
 | v3.2.0 | 版本號可點開查看更新紀錄，醒目標示本版新功能，新版本紅點提醒 |
@@ -36,7 +37,7 @@
 
 ```
 src/survey-cases.html   原始頁面（線上版直接發佈這個檔）
-data/seed.json          內建資料：原 Excel 2026 年 9～11 月的案件、工作日、代理人、種類
+data/seed.json          內建常用資料：代理人通訊錄、測量種類、9～11 月工作日（不含案件）
 vendor/                 SheetJS 0.18.5（Apache-2.0），離線版內嵌用
 tools/build.py          打包離線版
 dist/使用說明.txt       隨離線版附上的使用說明
@@ -46,8 +47,8 @@ release/                最新離線版（survey-schedule.zip）與版本檔（v
 ## 打包離線版
 
 ```bash
-python3 tools/build.py            # 內建 data/seed.json 的資料
-python3 tools/build.py --no-seed  # 第一次開啟為空白
+python3 tools/build.py            # 內建 data/seed.json 的常用資料（散佈與發佈用）
+python3 tools/build.py --no-seed  # 連常用資料都不內建，完全空白（只產生 dist/，不更新 release/）
 ```
 
 產出 `dist/測量案件排程/測量案件排程.html` 與 `dist/測量案件排程.zip`，並更新 `release/`。
@@ -60,4 +61,4 @@ python3 tools/build.py --no-seed  # 第一次開啟為空白
 
 ## 注意
 
-`data/seed.json` 與打包出的離線版內含申請人姓名與代理人電話；本倉庫為公開，任何人都能看到這些資料。
+自 v3.3.2 起，`data/seed.json` 與發佈的離線版不再含案件資料，只保留代理人通訊錄（含電話）。本倉庫為公開，任何人都能看到這些內容；v3.3.1 以前的 Git 歷史仍保有原本 9～11 月的案件資料。

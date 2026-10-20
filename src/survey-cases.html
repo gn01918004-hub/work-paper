@@ -611,12 +611,16 @@ a.btn{text-decoration:none}
 <script>
 (() => {
 const BUILD = "artifact";
-const VERSION = "3.3.1";
+const VERSION = "3.3.2";
 /* 離線版檢查更新：讀取 GitHub 公開倉庫的版本檔，新版本以 zip 提供下載 */
 const UPDATE_URL = "https://raw.githubusercontent.com/gn01918004-hub/work-paper/main/release/version.json";
 const DOWNLOAD_URL = "https://github.com/gn01918004-hub/work-paper/raw/main/release/survey-schedule.zip";
 /* 更新紀錄（與 CHANGELOG.md 同步）：第一筆為目前版本 */
 const CHANGELOG = [
+  {v:"3.3.2", date:"2026-10-20", title:"散佈版不含案件資料", items:[
+    "散佈用的離線版不再內建 9～11 月的 16 筆案件，第一次開啟時案件是空白的",
+    "仍內建代理人通訊錄、測量種類、段代碼與工作日，打開就能直接新增案件",
+    "已在使用的電腦更新後，原本的資料都會保留"]},
   {v:"3.3.1", date:"2026-10-20", title:"未排日期的案件一併結案", items:[
     "一次性整理：排定日期「未排」且還沒結案的案件改為「完成」，通知未寄出的改為「已寄出」（不需要通知的維持不變，撤回、駁回、延期的案件不動）",
     "已用過 v3.3.0 的電腦也會補做這項整理，之前整理過的案件不受影響"]},
@@ -655,7 +659,7 @@ const CHANGELOG = [
     "依原 Excel 欄位建立排程表、行事曆、代理人通訊錄",
     "輸入段代碼自動帶出地段與鎮別"]},
 ];
-const SEED = null; /* 離線版打包時會填入原本 Excel 的資料，第一次開啟時載入 */
+const SEED = null; /* 離線版打包時填入 data/seed.json（代理人通訊錄、種類、工作日等常用資料，不含案件），第一次開啟時載入 */
 
 /* ---------- 預設參考資料（來自「常用ID」工作表） ---------- */
 const DEFAULT_TYPES = ["鑑界","圖面分割","協助分割","現場分割","合併","新建","回復","滅失","基地號勘查","法院","界址調整","更正編定","再鑑定","自用住宅","地上權勘查","段界調整","預為分割","位置測量","門牌勘查","鑑界(協辦)"];
@@ -797,7 +801,7 @@ async function boot(){
   if (!db) {
     S.mode = "local"; S.loaded = true; localLoad();
     let empty = true; try { empty = !localStorage.getItem(LS); } catch(e){}
-    if (empty && SEED) { SEED.cases.forEach(c => S.cases.set(c.id, norm(c))); applyLists(SEED); localSave(); toast(`已載入原本 Excel 的資料：${SEED.cases.length} 筆`); }
+    if (empty && SEED) { SEED.cases.forEach(c => S.cases.set(c.id, norm(c))); applyLists(SEED); localSave(); toast(SEED.cases.length ? `已載入內建資料：${SEED.cases.length} 筆案件` : "已載入代理人通訊錄與常用資料，可以開始新增案件"); }
     $("#storeTag").classList.add("local");
     $("#storeTxt").textContent = "資料存在這台電腦";
     $("#btnBackup").hidden = false;
