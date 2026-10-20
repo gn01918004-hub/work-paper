@@ -1,11 +1,12 @@
 {
-  "version": "3.3.2",
+  "version": "3.4.0",
   "date": "2026-10-20",
-  "title": "散佈版不含案件資料",
+  "title": "自動備份到指定資料夾",
   "items": [
-    "散佈用的離線版不再內建 9～11 月的 16 筆案件，第一次開啟時案件是空白的",
-    "仍內建代理人通訊錄、測量種類、段代碼與工作日，打開就能直接新增案件",
-    "已在使用的電腦更新後，原本的資料都會保留"
+    "左下角新增「自動備份」：選一個資料夾後，每次修改資料約 3 秒就自動存一份備份",
+    "每天一個備份檔（survey-backup-日期.json），另外保留一份永遠最新的 survey-backup-latest.json",
+    "建議選雲端硬碟（Google 雲端硬碟、OneDrive）的同步資料夾，資料會同時存到雲端",
+    "瀏覽器暫停授權時會在上方提示，點一下就能繼續；支援 Chrome 與 Edge"
   ],
   "download": "https://github.com/gn01918004-hub/work-paper/raw/main/release/survey-schedule.zip"
 }

@@ -345,6 +345,14 @@ td.note{white-space:pre-line;min-width:140px;max-width:260px;color:var(--ink-2)}
 .vtl ul{margin:6px 0 0;padding-left:18px;font-size:13px;color:var(--ink-2);display:flex;flex-direction:column;gap:3px}
 .ustep{margin:0;padding-left:20px;font-size:13px;color:var(--ink-2);display:flex;flex-direction:column;gap:4px}
 a.btn{text-decoration:none}
+.sbtn .abdot{width:8px;height:8px;border-radius:50%;background:var(--band-ink-2);flex:none;margin-left:auto}
+.sbtn .abdot.ok{background:var(--ok);box-shadow:0 0 0 3px rgba(67,211,154,.2)}
+.sbtn .abdot.warn{background:var(--warn);box-shadow:0 0 0 3px rgba(240,184,60,.25)}
+.abstat{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:13px;padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:var(--surface-2)}
+.abstat dt{color:var(--ink-3)} .abstat dd{margin:0;font-weight:600;min-width:0;overflow-wrap:anywhere}
+.abstat .ok{color:var(--ok)} .abstat .warn{color:var(--warn)} .abstat .off{color:var(--ink-3)}
+.abnote{margin:0;padding-left:18px;font-size:12.5px;color:var(--ink-2);display:flex;flex-direction:column;gap:4px}
+.banner .btn{margin-left:8px}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(22px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:9px 18px;border-radius:999px;z-index:40;font-size:13px;box-shadow:var(--shadow)}
 
 /* ---------- narrow ---------- */
@@ -386,6 +394,7 @@ a.btn{text-decoration:none}
       <div class="store" id="storeTag"><i></i><span id="storeTxt">連線中…</span></div>
       <button class="sbtn" type="button" id="btnExport"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M10 3v10M6 9l4 4 4-4M3.5 16.5h13"/></svg><span>匯出 Excel</span></button>
       <button class="sbtn" type="button" id="btnImport"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M10 13V3M6 7l4-4 4 4M3.5 16.5h13"/></svg><span>匯入 Excel／備份</span></button>
+      <button class="sbtn" type="button" id="btnAuto" hidden aria-haspopup="dialog"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 6.5A1.5 1.5 0 0 1 4.5 5H8l1.5 1.5h6A1.5 1.5 0 0 1 17 8v6.5a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 3 14.5Z"/><path d="m7.5 11 2 2 3.5-3.5"/></svg><span id="abTxt">自動備份</span><i class="abdot" id="abDot"></i></button>
       <button class="sbtn" type="button" id="btnBackup" hidden><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="3" width="14" height="14" rx="2"/><path d="M7 3v5h6V3"/></svg><span>下載備份檔</span></button>
       <button class="sbtn vbtn" type="button" id="btnVer" aria-haspopup="dialog"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="10" cy="10" r="7.5"/><path d="M10 6v4.5l3 1.8"/></svg><b class="vnum" id="verTag"></b><span>・更新內容</span><i class="vdot" id="verDot" hidden></i></button>
       <input type="file" id="fileIn" accept=".xlsx,.xls,.json" hidden>
@@ -590,6 +599,12 @@ a.btn{text-decoration:none}
   </div>
 </div>
 
+<div class="dialog vdlg" id="adlg" hidden role="dialog" aria-labelledby="aTitle">
+  <div class="dr-h"><h2 id="aTitle">自動備份到資料夾</h2><button class="btn sm" type="button" id="aClose">關閉 Esc</button></div>
+  <div class="card-b" style="gap:14px" id="aBody"></div>
+  <div class="dr-f"><span id="aLeft"></span><div class="toolbar" id="aBtns"></div></div>
+</div>
+
 <div class="dialog" id="mdlg" hidden role="dialog" aria-labelledby="mTitle">
   <div class="dr-h"><h2 id="mTitle">依母表新增月份</h2><button class="btn sm" type="button" id="mClose">關閉</button></div>
   <div class="card-b" style="gap:14px">
@@ -611,12 +626,17 @@ a.btn{text-decoration:none}
 <script>
 (() => {
 const BUILD = "artifact";
-const VERSION = "3.3.2";
+const VERSION = "3.4.0";
 /* 離線版檢查更新：讀取 GitHub 公開倉庫的版本檔，新版本以 zip 提供下載 */
 const UPDATE_URL = "https://raw.githubusercontent.com/gn01918004-hub/work-paper/main/release/version.json";
 const DOWNLOAD_URL = "https://github.com/gn01918004-hub/work-paper/raw/main/release/survey-schedule.zip";
 /* 更新紀錄（與 CHANGELOG.md 同步）：第一筆為目前版本 */
 const CHANGELOG = [
+  {v:"3.4.0", date:"2026-10-20", title:"自動備份到指定資料夾", items:[
+    "左下角新增「自動備份」：選一個資料夾後，每次修改資料約 3 秒就自動存一份備份",
+    "每天一個備份檔（survey-backup-日期.json），另外保留一份永遠最新的 survey-backup-latest.json",
+    "建議選雲端硬碟（Google 雲端硬碟、OneDrive）的同步資料夾，資料會同時存到雲端",
+    "瀏覽器暫停授權時會在上方提示，點一下就能繼續；支援 Chrome 與 Edge"]},
   {v:"3.3.2", date:"2026-10-20", title:"散佈版不含案件資料", items:[
     "散佈用的離線版不再內建 9～11 月的 16 筆案件，第一次開啟時案件是空白的",
     "仍內建代理人通訊錄、測量種類、段代碼與工作日，打開就能直接新增案件",
@@ -735,7 +755,7 @@ function localLoad(){
     applyLists(o);
   } catch(e){}
 }
-function localSave(){ try { localStorage.setItem(LS, JSON.stringify({cases:[...S.cases.values()], ...listsBody()})); } catch(e){ toast("瀏覽器儲存空間不足，請先下載備份"); } }
+function localSave(){ try { localStorage.setItem(LS, JSON.stringify({cases:[...S.cases.values()], ...listsBody()})); } catch(e){ toast("瀏覽器儲存空間不足，請先下載備份"); } abSchedule(); }
 const listsBody = () => ({agents:S.agents, types:S.types, sections:S.sections, months:S.months, migrations:S.migrations});
 function applyLists(d){
   if (!d) return;
@@ -807,6 +827,7 @@ async function boot(){
     $("#btnBackup").hidden = false;
     if (BUILD === "artifact") showBanner("目前無法連到雲端資料庫，資料只會存在這個瀏覽器。登入 claude.ai 開啟此頁即可使用雲端資料。");
     render(); await runMigrations();
+    abInit();
     setTimeout(() => checkUpdate(false), 1200);
     return;
   }
@@ -1277,8 +1298,9 @@ async function exportXlsx(){
   const buf = XLSX.write(buildWorkbook(), {bookType:"xlsx", type:"array"});
   await saveFile(BUILD === "artifact" ? `測量案件排程-${TODAY}.xlsx` : `survey-schedule-${TODAY}.xlsx`, new Blob([buf], {type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}));
 }
+const backupJSON = () => JSON.stringify({app:"survey-cases", version:1, appVersion:VERSION, exportedAt:new Date().toISOString(), cases:all(), ...listsBody()}, null, 1);
 async function exportBackup(){
-  const data = JSON.stringify({app:"survey-cases", version:1, exportedAt:new Date().toISOString(), cases:all(), ...listsBody()}, null, 1);
+  const data = backupJSON();
   await saveFile(BUILD === "artifact" ? `測量案件備份-${TODAY}.json` : `survey-backup-${TODAY}.json`, new Blob([data], {type:"application/json"}));
 }
 const xd = v => {
@@ -1359,6 +1381,127 @@ $("#fileIn").onchange = async e => {
     else { if (!window.XLSX) { toast("Excel 元件未載入，請連網後重試"); return; } await importData(parseWorkbook(XLSX.read(await f.arrayBuffer(), {type:"array"}))); }
   } catch(err){ toast("讀不到這個檔案，請確認是本系統的 Excel 或備份檔"); }
 };
+
+/* ---------- 自動備份到指定資料夾（離線版；Chrome／Edge 的資料夾存取功能） ---------- */
+const AB = {handle:null, state:"off", last:"", timer:null, busy:false, pending:false};  // state: off | ok | needperm | error | unsupported
+const AB_DELAY = 3000;
+function idb(){
+  return new Promise((res, rej) => {
+    const r = indexedDB.open("survey-autobackup", 1);
+    r.onupgradeneeded = () => r.result.createObjectStore("kv");
+    r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+  });
+}
+async function kv(key, val){
+  const d = await idb();
+  return new Promise((res, rej) => {
+    const st = d.transaction("kv", val === undefined ? "readonly" : "readwrite").objectStore("kv");
+    const q = val === undefined ? st.get(key) : val === null ? st.delete(key) : st.put(val, key);
+    q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error);
+  });
+}
+async function abInit(){
+  if (BUILD === "artifact") return;
+  $("#btnAuto").hidden = false;
+  if (!("showDirectoryPicker" in window)) { AB.state = "unsupported"; abRender(); return; }
+  try { AB.handle = (await kv("dir")) || null; AB.last = (await kv("last")) || ""; } catch(e){}
+  if (!AB.handle) { AB.state = "off"; abRender(); return; }
+  const p = await AB.handle.queryPermission({mode:"readwrite"}).catch(() => "prompt");
+  AB.state = p === "granted" ? "ok" : "needperm";
+  abRender();
+  if (AB.state === "ok") abRun(false);
+}
+async function abPick(){
+  try {
+    const h = await window.showDirectoryPicker({id:"survey-backup", mode:"readwrite", startIn:"documents"});
+    AB.handle = h; AB.state = "ok";
+    try { await kv("dir", h); } catch(e){}
+    await abRun(true);
+  } catch(e){ if (!e || e.name !== "AbortError") toast("無法使用這個資料夾，請換一個試試"); }
+  abRender();
+}
+async function abGrant(){
+  if (!AB.handle) return abPick();
+  const p = await AB.handle.requestPermission({mode:"readwrite"}).catch(() => "denied");
+  AB.state = p === "granted" ? "ok" : "needperm";
+  abRender();
+  if (AB.state === "ok") abRun(true);
+}
+function abSchedule(){
+  if (BUILD === "artifact" || !AB.handle || AB.state !== "ok") return;
+  clearTimeout(AB.timer); AB.timer = setTimeout(() => abRun(false), AB_DELAY);
+}
+async function abRun(manual){
+  if (!AB.handle) return;
+  if (AB.busy) { AB.pending = true; return; }
+  AB.busy = true;
+  try {
+    const data = backupJSON();
+    for (const name of [`survey-backup-${iso(new Date())}.json`, "survey-backup-latest.json"]) {  // 英文檔名：與「下載備份檔」一致，各系統都能存
+      const fh = await AB.handle.getFileHandle(name, {create:true});
+      const w = await fh.createWritable(); await w.write(data); await w.close();
+    }
+    const d = new Date(); AB.last = `${iso(d)} ${pad(d.getHours())}:${pad(d.getMinutes())}`; AB.state = "ok";
+    kv("last", AB.last).catch(() => {});
+    if (manual) toast(`已備份到「${AB.handle.name}」資料夾`);
+  } catch(e){
+    AB.state = e && (e.name === "NotAllowedError" || e.name === "SecurityError") ? "needperm" : "error";
+    if (manual) toast(AB.state === "needperm" ? "需要重新允許存取資料夾" : "備份失敗，請確認資料夾還在，或重新選擇資料夾");
+  } finally {
+    AB.busy = false; abRender();
+    if (AB.pending) { AB.pending = false; abSchedule(); }
+  }
+}
+async function abOff(){
+  AB.handle = null; AB.state = "off"; clearTimeout(AB.timer);
+  try { await kv("dir", null); } catch(e){}
+  abRender(); toast("已關閉自動備份，資料夾裡的備份檔會保留");
+}
+const AB_TEXT = {off:"自動備份：未設定", ok:"自動備份中", needperm:"自動備份：已暫停", error:"自動備份：失敗", unsupported:"自動備份：不支援"};
+function abRender(){
+  if (BUILD === "artifact") return;
+  $("#abTxt").textContent = AB.state === "ok" && AB.last ? `自動備份・${AB.last.slice(5).replace("-", "/")}` : AB_TEXT[AB.state];
+  $("#abDot").className = "abdot" + (AB.state === "ok" ? " ok" : AB.state === "needperm" || AB.state === "error" ? " warn" : "");
+  const b = $("#banner");
+  if (AB.state === "needperm" || AB.state === "error") {
+    b.innerHTML = `${AB.state === "needperm" ? "自動備份已暫停：瀏覽器需要你再次允許存取備份資料夾。" : "自動備份失敗：找不到備份資料夾，請重新選擇。"}<button class="btn sm" type="button" id="abBanner">${AB.state === "needperm" ? "繼續自動備份" : "重新選擇資料夾"}</button>`;
+    b.hidden = false; b.dataset.ab = "1";
+  } else if (b.dataset.ab) { b.hidden = true; b.innerHTML = ""; delete b.dataset.ab; }
+  if (!$("#adlg").hidden) abDialog();
+}
+function abDialog(){
+  const st = {off:["off","尚未設定"], ok:["ok","運作中"], needperm:["warn","已暫停，需要再次允許"], error:["warn","備份失敗"], unsupported:["off","這個瀏覽器不支援"]}[AB.state];
+  $("#aBody").innerHTML = AB.state === "unsupported"
+    ? `<p style="margin:0">這個瀏覽器不支援自動備份到資料夾。請改用 <b>Chrome</b> 或 <b>Edge</b> 開啟本檔案；或定期按左下角「下載備份檔」手動備份。</p>`
+    : `<dl class="abstat"><dt>狀態</dt><dd class="${st[0]}">${st[1]}</dd>
+        <dt>資料夾</dt><dd>${AB.handle ? esc(AB.handle.name) : "—"}</dd>
+        <dt>上次備份</dt><dd>${AB.last ? esc(AB.last) : "—"}</dd></dl>
+      <ul class="abnote">
+        <li>每次修改資料後約 3 秒自動存一份，開啟時也會存一份</li>
+        <li>每天一個檔案「survey-backup-日期.json」，另有一份「survey-backup-latest.json」（永遠是最新的）</li>
+        <li>建議選 Google 雲端硬碟、OneDrive 等同步資料夾，備份會同時存到雲端</li>
+        <li>瀏覽器詢問權限時，選「每次造訪都允許」，之後就不用再按</li>
+        <li>還原：左下角「匯入 Excel／備份」→ 選資料夾裡的備份檔</li>
+      </ul>`;
+  const B = (id, t, cls = "") => `<button class="btn ${cls}" type="button" data-ab="${id}">${t}</button>`;
+  $("#aLeft").innerHTML = AB.handle ? `<button class="btn sm danger" type="button" data-ab="off">關閉自動備份</button>` : "";
+  $("#aBtns").innerHTML = {
+    off: B("pick", "選擇備份資料夾", "primary"),
+    ok: B("pick", "更換資料夾") + B("now", "立即備份", "primary"),
+    needperm: B("pick", "更換資料夾") + B("grant", "繼續自動備份", "primary"),
+    error: B("pick", "重新選擇資料夾", "primary"),
+    unsupported: "",
+  }[AB.state];
+}
+function openAb(){ abDialog(); $("#scrim").hidden = false; $("#adlg").hidden = false; $("#aClose").focus(); }
+function closeAb(){ if ($("#adlg").hidden) return; $("#adlg").hidden = true; if ($("#drawer").hidden && $("#mdlg").hidden && $("#vdlg").hidden && $("#udlg").hidden) $("#scrim").hidden = true; }
+$("#btnAuto").onclick = openAb;
+$("#aClose").onclick = closeAb;
+$("#adlg").addEventListener("click", e => {
+  const a = e.target.closest("[data-ab]")?.dataset.ab; if (!a) return;
+  if (a === "pick") abPick(); else if (a === "grant") abGrant(); else if (a === "now") abRun(true); else if (a === "off") abOff();
+});
+$("#banner").addEventListener("click", e => { if (e.target.id === "abBanner") AB.state === "needperm" ? abGrant() : abPick(); });
 
 /* ---------- 事件 ---------- */
 function go(v){
@@ -1457,7 +1600,7 @@ $("#readout").onclick = e => {
   const code = $("#cSec").value.trim(); closeDrawer(); go("sec"); secFormReset(); $("#sCode").value = code; $("#sName").focus();
 };
 $("#dClose").onclick = closeDrawer; $("#dCancel").onclick = closeDrawer;
-$("#scrim").onclick = () => { closeDrawer(); closeMonth(); closeVer(); closeUpd(); };
+$("#scrim").onclick = () => { closeDrawer(); closeMonth(); closeVer(); closeUpd(); closeAb(); };
 const VSEEN = "survey-version-seen", USKIP = "survey-update-skip";
 const vcmp = (a, b) => { const x = String(a).split(".").map(Number), y = String(b).split(".").map(Number); for (let i = 0; i < 3; i++) { const d = (x[i] || 0) - (y[i] || 0); if (d) return d; } return 0; };
 let updInfo = null;
@@ -1571,9 +1714,9 @@ $("#typeForm").onsubmit = async e => {
 $("#typeTags").onclick = async e => { const b = e.target.closest("[data-del-type]"); if (!b) return; S.types.splice(Number(b.dataset.delType), 1); try { await saveLists(); } catch(err){ writeFailed(err); } };
 
 document.addEventListener("keydown", e => {
-  if (e.key === "Escape") { if (!$("#udlg").hidden) closeUpd(); else if (!$("#vdlg").hidden) closeVer(); else if (!$("#drawer").hidden) closeDrawer(); else if (!$("#mdlg").hidden) closeMonth(); else if (S.mpop) { S.mpop = false; renderList(); } return; }
+  if (e.key === "Escape") { if (!$("#adlg").hidden) closeAb(); else if (!$("#udlg").hidden) closeUpd(); else if (!$("#vdlg").hidden) closeVer(); else if (!$("#drawer").hidden) closeDrawer(); else if (!$("#mdlg").hidden) closeMonth(); else if (S.mpop) { S.mpop = false; renderList(); } return; }
   const typing = /INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName || "");
-  if (typing || e.metaKey || e.ctrlKey || e.altKey || !$("#drawer").hidden || !$("#mdlg").hidden || !$("#vdlg").hidden || !$("#udlg").hidden) return;
+  if (typing || e.metaKey || e.ctrlKey || e.altKey || !$("#drawer").hidden || !$("#mdlg").hidden || !$("#vdlg").hidden || !$("#udlg").hidden || !$("#adlg").hidden) return;
   if (e.key === "n" || e.key === "N") { e.preventDefault(); openDrawer(null); }
   if (S.view === "list" && (e.key === "ArrowLeft" || e.key === "ArrowRight")) { e.preventDefault(); navMonth(e.key === "ArrowLeft" ? -1 : 1); return; }
   if (e.key === "/") { e.preventDefault(); if (S.view !== "list") go("list"); $("#q").focus(); }
