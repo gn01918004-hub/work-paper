@@ -197,7 +197,7 @@ tr.flash td{animation:flash 1.6s ease-out}
 td.dt{font-family:var(--f-num);font-weight:600;font-size:14px}
 td.dt span{font-family:var(--f-ui);font-weight:400;font-size:12px;color:var(--ink-3);margin-left:4px}
 td .sub{display:block;font-size:12px;color:var(--ink-3)}
-td.note{white-space:normal;min-width:140px;max-width:260px;color:var(--ink-2)}
+td.note{white-space:pre-line;min-width:140px;max-width:260px;color:var(--ink-2)}
 .st{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;border-radius:999px;padding:2px 10px 2px 8px;background:var(--line-2);color:var(--ink-2)}
 .st::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
 .st.done{background:var(--ok-soft);color:var(--ok)}
@@ -231,7 +231,12 @@ td.note{white-space:normal;min-width:140px;max-width:260px;color:var(--ink-2)}
 .ev.pp{border-color:var(--warn);background:var(--warn-soft);text-decoration:line-through}
 .ev .tm{font-family:var(--f-num);font-weight:600}
 .ev.over{border-color:var(--crit);background:var(--crit-soft)}
-@media (max-width:700px){.cal .day{min-height:74px;padding:4px}.ev .x{display:none}.cal .day .n small{display:none}}
+.ev.evc{white-space:normal;display:flex;flex-direction:column;line-height:1.35;padding:3px 6px 4px}
+.ev .r1{display:flex;justify-content:space-between;align-items:baseline;gap:4px;font-weight:700}
+.ev .r1 .tm{color:var(--gnss)}
+.ev .r{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:11.5px;color:var(--ink-2)}
+.ev .r .num{font-family:var(--f-num)}
+@media (max-width:700px){.cal .day{min-height:74px;padding:4px}.ev .x,.ev .r{display:none}.ev .r1 .tm{display:none}.cal .day .n small{display:none}}
 
 /* ---------- reference ---------- */
 .two{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:16px;align-items:start}
@@ -350,7 +355,7 @@ td.note{white-space:normal;min-width:140px;max-width:260px;color:var(--ink-2)}
       <button type="button" data-view="ref"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="7.5" cy="7" r="3"/><path d="M2 17c.6-3 3-4.5 5.5-4.5S12.4 14 13 17M13 4.5a3 3 0 0 1 0 5.5M15 12.5c1.6.6 2.6 2 3 4.5"/></svg>常用資料</button>
     </nav>
     <div class="side-foot">
-      <div class="store" id="storeTag"><i></i><span id="storeTxt">連線中…</span></div>
+      <div class="store" id="storeTag"><i></i><span id="storeTxt">連線中…</span><span id="verTag" style="margin-left:auto;font-family:var(--f-num);opacity:.7"></span></div>
       <button class="sbtn" type="button" id="btnExport"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M10 3v10M6 9l4 4 4-4M3.5 16.5h13"/></svg><span>匯出 Excel</span></button>
       <button class="sbtn" type="button" id="btnImport"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M10 13V3M6 7l4-4 4 4M3.5 16.5h13"/></svg><span>匯入 Excel／備份</span></button>
       <button class="sbtn" type="button" id="btnBackup" hidden><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="3" width="14" height="14" rx="2"/><path d="M7 3v5h6V3"/></svg><span>下載備份檔</span></button>
@@ -406,7 +411,7 @@ td.note{white-space:normal;min-width:140px;max-width:260px;color:var(--ink-2)}
           <span style="font-size:12px;color:var(--ink-3)">← → 鍵可快速切換月份</span>
         </div>
         <div class="toolbar">
-          <input class="in grow" id="q" type="search" placeholder="搜尋申請人、代理人、地號、號碼、地段、備註　（按 / 快速搜尋）">
+          <input class="in grow" id="q" type="search" placeholder="搜尋申請人、代理人、地號、案件編號、地段、備註　（按 / 快速搜尋）">
           <select class="in" id="fType" aria-label="種類"></select>
           <select class="in" id="fStatus" aria-label="辦理情形">
             <option value="">全部狀態</option><option value="__open">未結案</option><option value="__overdue">逾期未結</option><option value="__nonotice">通知未寄出</option><option>完成</option><option>補正</option><option>撤回</option><option>駁回</option><option>成圖</option><option>擴大檢測</option><option>詳備註</option><option>延期</option>
@@ -416,7 +421,7 @@ td.note{white-space:normal;min-width:140px;max-width:260px;color:var(--ink-2)}
         <div class="card">
           <div class="mhead" id="mhead"></div>
           <div class="tw"><table>
-            <thead><tr><th>排定日期／時間</th><th>種類</th><th>地段</th><th>地號</th><th>申請人</th><th>代理人</th><th>號碼</th><th>收件</th><th>通知狀態</th><th>儀器</th><th>辦理情形</th><th>備註</th></tr></thead>
+            <thead><tr><th>排定日期／時間</th><th>種類</th><th>地段</th><th>地號</th><th>申請人</th><th>代理人</th><th>案件編號</th><th>收件</th><th>通知狀態</th><th>儀器</th><th>辦理情形</th><th>備註</th></tr></thead>
             <tbody id="rows"></tbody>
           </table></div>
           <div id="listEmpty" class="empty" hidden></div>
@@ -528,10 +533,11 @@ td.note{white-space:normal;min-width:140px;max-width:260px;color:var(--ink-2)}
     <div class="f" data-for="case"><label for="cApp">申請人</label><input class="in" id="cApp"></div>
     <div class="f" data-for="case"><label for="cAgent">代理人</label><input class="in" id="cAgent" list="dlAgents"><span class="hint" id="agentHint"></span></div>
     <div class="f" data-for="case"><label for="cRecv">收件時間</label><input class="in num" type="date" id="cRecv"></div>
-    <div class="f" data-for="case"><label for="cNo">號碼</label><input class="in num" id="cNo" inputmode="numeric"></div>
+    <div class="f" data-for="case"><label for="cNo">案件編號</label><input class="in num" id="cNo" inputmode="numeric"></div>
     <div class="f full" data-for="case"><span class="lb">通知狀態</span><div class="seg" id="noticeSeg"></div></div>
     <div class="f full" data-for="case"><span class="lb">儀器（可複選）</span><div class="seg" id="instSeg"></div></div>
     <div class="f full" data-for="case"><span class="lb">辦理情形</span><div class="stgrid" id="statusGrid"></div></div>
+    <div class="f" data-for="case" id="stampRow" hidden><label for="cStampAt">辦理時間（會寫入備註，可修改）</label><input class="in num" type="datetime-local" id="cStampAt"></div>
     <div class="f full" data-for="leave"><label for="cReason">說明</label><input class="in" id="cReason" placeholder="例 特休、選舉講習、縣府上課"></div>
     <div class="f full"><label for="cNote">備註</label><textarea class="in" id="cNote" rows="3"></textarea></div>
   </form>
@@ -562,12 +568,15 @@ td.note{white-space:normal;min-width:140px;max-width:260px;color:var(--ink-2)}
 <script>
 (() => {
 const BUILD = "artifact";
+const VERSION = "3.1.0";
 const SEED = null; /* 離線版打包時會填入原本 Excel 的資料，第一次開啟時載入 */
 
 /* ---------- 預設參考資料（來自「常用ID」工作表） ---------- */
 const DEFAULT_TYPES = ["鑑界","圖面分割","協助分割","現場分割","合併","新建","回復","滅失","基地號勘查","法院","界址調整","更正編定","再鑑定","自用住宅","地上權勘查","段界調整","預為分割","位置測量","門牌勘查","鑑界(協辦)"];
 const STATUSES = ["完成","補正","撤回","駁回","成圖","擴大檢測","詳備註"];
 const PP = "延期";
+const STAMPED = new Set(["完成","補正","駁回","撤回"]); /* 選這些辦理情形時，自動把當下日期時間寫入備註 */
+const STAMP_RE = /^【(完成|補正|駁回|撤回) [^】]*】\n?/;
 const DONE = new Set(["完成"]), STOPPED = new Set(["撤回","駁回"]);
 const NOTICES = ["已寄出","未寄出","不需要通知"], INSTS = ["經緯儀","衛星","不需要儀器"];
 const LEAVES = {"休假":"lv-off", "出差":"lv-trip", "上課":"lv-class"};
@@ -911,7 +920,11 @@ function renderCal(){
     const off = wd && !isWorkday(k) && !list.length;
     html += `<div class="day${d.getMonth()!==m-1?" out":""}${k===TODAY?" now":""}${off?" off":""}" data-date="${k}"><span class="n"><b>${d.getDate()}</b><small>${HOLIDAYS[k] || ""}</small></span>` +
       list.map(c => isLeave(c) ? `<div class="ev leave ${LEAVES[c.leaveType]}" data-id="${c.id}" title="${esc([c.leaveType, c.time, c.reason].filter(Boolean).join("・"))}">${esc(c.leaveType)}${c.reason && c.reason !== c.leaveType ? ` <span class="x">${esc(c.reason)}</span>` : ""}</div>`
-        : `<div class="ev ${DONE.has(c.status)?"done":c.status===PP?"pp":isOver(c)?"over":""}" data-id="${c.id}" title="${esc([c.time, c.type, secOf(c)?.name, c.lot, c.applicant, c.status].filter(Boolean).join("・"))}">${c.time ? `<span class="tm">${esc(c.time)}</span> ` : ""}${esc(c.type)} <span class="x">${esc(c.lot || "")} ${esc(c.applicant || "")}</span></div>`).join("") + `</div>`;
+        : `<div class="ev evc ${DONE.has(c.status)?"done":c.status===PP?"pp":isOver(c)?"over":""}" data-id="${c.id}" title="${esc([c.type, c.time, c.no && "編號 " + c.no, secOf(c)?.name, c.lot, c.applicant, c.status].filter(Boolean).join("・"))}">
+          <span class="r1"><span>${esc(c.type || "案件")}</span>${c.time ? `<span class="tm">${esc(c.time)}</span>` : ""}</span>
+          ${c.no ? `<span class="r">編號 <span class="num">${esc(c.no)}</span></span>` : ""}
+          ${secOf(c) || c.lot ? `<span class="r">${esc(secOf(c)?.name || c.sec || "")} <span class="num">${esc(c.lot || "")}</span></span>` : ""}
+          ${c.applicant ? `<span class="r">${esc(c.applicant)}</span>` : ""}</div>`).join("") + `</div>`;
   }
   $("#cal").innerHTML = html;
 }
@@ -969,6 +982,7 @@ function setKind(k){
   S.kind = k;
   $("#kindSeg").querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", b.dataset.kind === k));
   document.querySelectorAll("#caseForm [data-for]").forEach(el => el.hidden = el.dataset.for !== k);
+  $("#stampRow").hidden = k !== "case" || !STAMPED.has(S.status);
   drawReadout();
 }
 function drawReadout(){
@@ -1000,6 +1014,7 @@ function openDrawer(c, preset = {}){
   $("#cSec").value = v.sec || ""; $("#cLot").value = v.lot || ""; $("#cApp").value = v.applicant || "";
   $("#cAgent").value = v.agent || ""; $("#cReason").value = v.reason || ""; $("#cNote").value = v.note || "";
   S.notice = v.notice || ""; S.inst = [...(v.inst || [])]; S.status = isLeave(v) ? "" : (v.status || ""); S.lv = v.leaveType || "休假";
+  $("#cStampAt").value = v.statusAt || ""; $("#stampRow").hidden = !STAMPED.has(S.status);
   drawNotice(); drawInst(); drawStatus(); drawLv(); agentHint(); setKind(v.kind || "case");
   const lk = c ? linkHTML(c) : "", lr = $("#linkRow"); lr.innerHTML = lk; lr.hidden = !lk;
   $("#ppPanel").hidden = true;
@@ -1020,6 +1035,7 @@ function collectForm(){
   const c = {...(base || {}), kind:"case", type:$("#cType").value, sched, time, recv:$("#cRecv").value, no:$("#cNo").value.trim(),
     notice:S.notice, sec:$("#cSec").value.trim(), lot:$("#cLot").value.trim(), applicant:$("#cApp").value.trim(),
     agent:$("#cAgent").value.trim(), inst:[...S.inst], status:S.status, note};
+  if (STAMPED.has(c.status) && $("#cStampAt").value) c.statusAt = $("#cStampAt").value; else delete c.statusAt;
   if (!c.type && !c.applicant && !c.lot) { toast("至少填種類、申請人或地號其中一項"); return null; }
   return tidy(c);
 }
@@ -1103,7 +1119,7 @@ async function saveMonth(){
 }
 
 /* ---------- 匯出／匯入 ---------- */
-const HEAD = ["種類","收件時間","排定日期","排定時間","號碼","通知狀態","鎮別","段代碼","地段","地號","申請人","代理人","儀器","辦理情形","備註"];
+const HEAD = ["種類","收件時間","排定日期","排定時間","案件編號","通知狀態","鎮別","段代碼","地段","地號","申請人","代理人","儀器","辦理情形","備註"];
 function caseRow(c){
   const s = secOf(c), E = Array(HEAD.length).fill("");
   if (c.slot) { E[2] = c.sched; return E; }
@@ -1176,17 +1192,17 @@ function parseWorkbook(wb){
     }
     const ci = n => h.indexOf(n);
     if (ci("種類") < 0 || ci("排定日期") < 0) return;
-    const nc = ci("通知狀態") >= 0 ? "通知狀態" : "通知已寄";
+    const nc = ci("通知狀態") >= 0 ? "通知狀態" : "通知已寄", noc = ci("案件編號") >= 0 ? "案件編號" : "號碼";
     const mm = name.match(/(\d{1,2})月/);
     const days = [];
     rows.slice(1).forEach(r => {
       const g = n => r[ci(n)], sched = xd(g("排定日期"));
       if (sched) days.push(sched);
-      const any = ["種類","收件時間","號碼","申請人","代理人","辦理情形","備註","地號"].some(n => ci(n) >= 0 && xs(g(n)));
+      const any = ["種類","收件時間",noc,"申請人","代理人","辦理情形","備註","地號"].some(n => ci(n) >= 0 && xs(g(n)));
       if (!any) return;
       const status = xs(g("辦理情形")), time = xt(g("排定時間"));
       if (["休假/出差","休假","出差","上課"].includes(status) && !xs(g("種類"))) out.cases.push(norm({kind:"leave", sched, time, reason:xs(g("地號")) || xs(g("申請人")), note:xs(g("備註")), status:status === "休假/出差" ? "" : status}));
-      else out.cases.push(norm({kind:"case", type:xs(g("種類")), recv:xd(g("收件時間")), sched, time, no:xs(g("號碼")), notice:xs(g(nc)), sec:xs(g("段代碼")), lot:xs(g("地號")), applicant:xs(g("申請人")), agent:xs(g("代理人")), inst:xs(g("儀器")), status, note:xs(g("備註"))}));
+      else out.cases.push(norm({kind:"case", type:xs(g("種類")), recv:xd(g("收件時間")), sched, time, no:xs(g(noc)), notice:xs(g(nc)), sec:xs(g("段代碼")), lot:xs(g("地號")), applicant:xs(g("申請人")), agent:xs(g("代理人")), inst:xs(g("儀器")), status, note:xs(g("備註"))}));
     });
     if (mm && days.length) {
       const mon = Number(mm[1]), yr = (name.match(/(\d{4})/) || [])[1] || (days.find(d => Number(d.slice(5,7)) === mon) || days[0]).slice(0,4);
@@ -1294,7 +1310,22 @@ $("#linkRow").onclick = e => { const g = e.target.closest("[data-goto]"); if (g)
 $("#dPostpone").onclick = () => { $("#ppPanel").hidden = false; $("#ppDate").value = ""; $("#ppTime").value = $("#cTime").value; $("#ppPanel").scrollIntoView({block:"nearest"}); $("#ppDate").focus(); };
 $("#ppCancel").onclick = () => { $("#ppPanel").hidden = true; };
 $("#ppGo").onclick = postpone;
-$("#statusGrid").onclick = e => { const b = e.target.closest("button"); if (!b) return; S.status = b.dataset.v === S.status ? "" : b.dataset.v; drawStatus(); };
+const nowLocal = () => { const d = new Date(); return `${iso(d)}T${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+function writeStamp(){
+  const ta = $("#cNote"), rest = ta.value.replace(STAMP_RE, ""), at = $("#cStampAt").value;
+  if (!STAMPED.has(S.status) || !at) { ta.value = rest; return; }
+  const [d, t] = at.split("T");
+  ta.value = `【${S.status} ${d.replace(/-/g, "/")} ${t}】` + (rest ? "\n" + rest : "");
+}
+$("#statusGrid").onclick = e => {
+  const b = e.target.closest("button"); if (!b) return;
+  S.status = b.dataset.v === S.status ? "" : b.dataset.v; drawStatus();
+  const stamped = STAMPED.has(S.status);
+  $("#stampRow").hidden = !stamped;
+  if (stamped) $("#cStampAt").value = nowLocal();
+  writeStamp();
+};
+$("#cStampAt").oninput = writeStamp;
 $("#cSec").oninput = drawReadout; $("#cSched").oninput = () => S.kind === "leave" && drawReadout(); $("#cAgent").oninput = agentHint;
 $("#readout").onclick = e => {
   if (!e.target.closest('[data-act="addsec"]')) return;
@@ -1373,6 +1404,7 @@ document.addEventListener("keydown", e => {
 });
 
 try { const v = localStorage.getItem("survey-view"); if (v && $("#view-"+v)) S.view = v; } catch(e){}
+$("#verTag").textContent = "v" + VERSION;
 rebuild();
 go(S.view);
 boot();
