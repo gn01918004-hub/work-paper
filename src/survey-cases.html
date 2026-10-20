@@ -166,11 +166,11 @@ select.in{width:auto}
 .mhead{display:flex;flex-wrap:wrap;gap:14px 24px;align-items:center;padding:14px 16px;border-bottom:1px solid var(--line-2)}
 .mhead .mt{font-family:var(--f-num);font-weight:700;font-size:26px;line-height:1}
 .mhead .mt small{font-size:13px;color:var(--ink-3);font-weight:600;margin-left:6px}
-.prog{flex:1 1 200px;display:flex;flex-direction:column;gap:4px;min-width:0}
-.prog .tr{height:8px;background:var(--line-2);border-radius:4px;overflow:hidden;display:flex}
-.prog .tr i{height:100%}
-.prog .lg{display:flex;gap:12px;font-size:12px;color:var(--ink-2);flex-wrap:wrap}
-.prog .lg span::before{content:"";display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px;background:var(--c)}
+.mhead .prog{flex:1 1 200px;display:flex;flex-direction:column;gap:4px;min-width:0}
+.mhead .prog .tr{height:8px;background:var(--line-2);border-radius:4px;overflow:hidden;display:flex}
+.mhead .prog .tr i{height:100%}
+.mhead .prog .lg{display:flex;gap:12px;font-size:12px;color:var(--ink-2);flex-wrap:wrap}
+.mhead .prog .lg span::before{content:"";display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px;background:var(--c)}
 .tw{overflow-x:auto}
 .sched{max-height:calc(100vh - 120px);min-height:380px;overflow:auto}
 .sched thead th{position:sticky;top:0;z-index:2}
@@ -366,6 +366,24 @@ a.btn{text-decoration:none}
 .abstat .ok{color:var(--ok)} .abstat .warn{color:var(--warn)} .abstat .off{color:var(--ink-3)}
 .abnote{margin:0;padding-left:18px;font-size:12.5px;color:var(--ink-2);display:flex;flex-direction:column;gap:4px}
 .banner .btn{margin-left:8px}
+.due{display:block;font-size:11.5px;font-weight:600;margin-top:2px;color:var(--ink-3)}
+.due.soon{color:var(--warn)} .due.grace,.due.over{color:var(--crit)} .due.nodate{color:var(--ink-3);font-weight:400}
+.cr{display:grid;grid-template-columns:78px minmax(0,1fr) auto;gap:14px;align-items:center;padding:10px 16px;border-top:1px solid var(--line-2);cursor:pointer;background:none;border-left:3px solid transparent;border-right:0;border-bottom:0;text-align:left;width:100%}
+.cr:first-child{border-top:0}
+.cr:hover{background:var(--surface-2)}
+.cr.soon{border-left-color:var(--warn);background:var(--warn-soft)}
+.cr.grace,.cr.over{border-left-color:var(--crit);background:var(--crit-soft)}
+.cr .main{min-width:0} .cr .l2{display:block;font-size:12.5px;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.left{font-family:var(--f-num);font-weight:700;font-size:13px;border-radius:999px;padding:3px 10px;white-space:nowrap;background:var(--line-2);color:var(--ink-2)}
+.left.soon{background:var(--warn);color:#fff} .left.grace,.left.over{background:var(--crit);color:#fff} .left.nodate{background:transparent;border:1px dashed var(--line);color:var(--ink-3);font-family:var(--f-ui);font-weight:500}
+.kpi.warnk{border-color:var(--warn);background:linear-gradient(0deg,var(--warn-soft),var(--surface) 70%)}
+.kpi.warnk .v{color:var(--warn)}
+.cellsel{font:inherit;font-size:12.5px;font-weight:600;border:1px solid var(--line);border-radius:6px;background:var(--surface);padding:3px 22px 3px 6px;max-width:132px;cursor:pointer;color:var(--ink-2)}
+.cellsel:hover{border-color:var(--ink-3)}
+.cellsel.sent{color:var(--ok);border-color:color-mix(in srgb,var(--ok) 45%,var(--line))}
+.cellsel.unsent{color:var(--crit);border-color:color-mix(in srgb,var(--crit) 45%,var(--line))}
+.cellsel.na{color:var(--ink-3);font-weight:400}
+.cellsel.empty{color:var(--ink-3);border-style:dashed;font-weight:400}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(22px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:9px 18px;border-radius:999px;z-index:40;font-size:13px;box-shadow:var(--shadow)}
 
 /* ---------- narrow ---------- */
@@ -448,8 +466,8 @@ a.btn{text-decoration:none}
               <div class="card-b"><div class="bars" id="mix"></div></div>
             </div>
             <div class="card">
-              <div class="card-h"><h3>代理人排行</h3><span class="meta">本年度件數</span></div>
-              <div class="card-b"><div class="bars" id="agMix"></div></div>
+              <div class="card-h"><h3>補正中案件</h3><span class="meta" id="corrMeta"></span></div>
+              <div id="corrList"></div>
             </div>
           </div>
         </div>
@@ -590,7 +608,7 @@ a.btn{text-decoration:none}
     <div class="f full" data-for="case"><span class="lb">通知狀態</span><div class="seg" id="noticeSeg"></div></div>
     <div class="f full" data-for="case"><span class="lb">儀器（可複選）</span><div class="seg" id="instSeg"></div></div>
     <div class="f full" data-for="case"><span class="lb">辦理情形</span><div class="stgrid" id="statusGrid"></div></div>
-    <div class="f" data-for="case" id="stampRow" hidden><label for="cStampAt">辦理時間（會寫入備註，可修改）</label><input class="in num" type="datetime-local" id="cStampAt"></div>
+    <div class="f" data-for="case" id="stampRow" hidden><label for="cStampAt" id="stampLbl">辦理時間（會寫入備註，可修改）</label><input class="in num" type="datetime-local" id="cStampAt"><span class="hint" id="corrInfo" hidden></span></div>
     <div class="f full" data-for="leave"><label for="cReason">說明</label><input class="in" id="cReason" placeholder="例 特休、選舉講習、縣府上課"></div>
     <div class="f full"><label for="cNote">備註</label><textarea class="in" id="cNote" rows="3"></textarea></div>
   </form>
@@ -641,12 +659,19 @@ a.btn{text-decoration:none}
 <script>
 (() => {
 const BUILD = "artifact";
-const VERSION = "3.5.0";
+const VERSION = "3.6.0";
 /* 離線版檢查更新：讀取 GitHub 公開倉庫的版本檔，新版本以 zip 提供下載 */
 const UPDATE_URL = "https://raw.githubusercontent.com/gn01918004-hub/work-paper/main/release/version.json";
 const DOWNLOAD_URL = "https://github.com/gn01918004-hub/work-paper/raw/main/release/survey-schedule.zip";
 /* 更新紀錄（與 CHANGELOG.md 同步）：第一筆為目前版本 */
 const CHANGELOG = [
+  {v:"3.6.0", date:"2026-10-20", title:"補正期限追蹤、排程表直接改通知與儀器", items:[
+    "選「補正」時自動計算到期日：補正日隔日起算第 15 日（例：10/20 補正 → 11/04 到期）",
+    "補正案件到期後再寬限 2 天才列為逾期，不再依排定日期判斷",
+    "總覽「未來 7 天」改為「補正中」件數，剩不到 3 天或已到期時變色提醒",
+    "總覽「代理人排行」改為「補正中案件」列表，依剩餘天數排序，剩不到 3 天標黃、已到期標紅並警示",
+    "排程表的「通知狀態」「儀器」改為下拉選單，直接選就會儲存",
+    "排程表的補正案件顯示到期日與剩餘天數"]},
   {v:"3.5.0", date:"2026-10-20", title:"排程表改為今天前後 15 天、捲動載入", items:[
     "排程表不再按月份分頁，打開就顯示今天前後 15 天，並自動捲到今天",
     "在表格內往上捲到頂端會載入更早 15 天，往下捲到底會載入更後 15 天（也可按上下的按鈕）",
@@ -749,7 +774,19 @@ const dow = s => DOW[parseISO(s).getDay()];
 const mLabel = k => `${Number(k.slice(5))}月`;
 const isLeave = c => c.kind === "leave";
 const isClosed = c => DONE.has(c.status) || STOPPED.has(c.status) || c.status === PP || isLeave(c);
-const isOver = c => !isClosed(c) && c.sched && c.sched < TODAY;
+/* 補正期限：補正日隔日起算第 15 日到期（補正日 + 15 天），到期後再寬限 2 天，之後才算逾期 */
+const CORR_DAYS = 15, CORR_GRACE = 2;
+const dayDiff = (a, b) => Math.round((parseISO(a) - parseISO(b)) / 864e5);
+const corrDate = c => c.status === "補正" && c.statusAt ? c.statusAt.slice(0,10) : "";
+const corrDue = c => { const d = corrDate(c); return d ? addDays(d, CORR_DAYS) : ""; };
+const corrLeft = c => { const d = corrDue(c); return d ? dayDiff(d, TODAY) : null; };      // 距到期日還有幾天（負數＝已過）
+const corrLevel = c => { const L = corrLeft(c); return L === null ? "nodate" : L < -CORR_GRACE ? "over" : L < 0 ? "grace" : L < 3 ? "soon" : "ok"; };
+const corrText = c => { const L = corrLeft(c); return L === null ? "未設補正日" : L > 0 ? `剩 ${L} 天` : L === 0 ? "今天到期" : L >= -CORR_GRACE ? `已到期 ${-L} 天（寬限中）` : `逾期 ${-L - CORR_GRACE} 天`; };
+const isOver = c => {
+  if (isClosed(c)) return false;
+  if (c.status === "補正") return corrLevel(c) === "over";   // 補正案件依補正期限判斷，不看排定日期
+  return !!c.sched && c.sched < TODAY;
+};
 const secOf = c => SECMAP.get(String(c.sec || ""));
 const monthOf = c => { const d = c.sched || c.recv || ""; return DAYOWNER.get(d) || d.slice(0,7); };
 const stClass = c => isLeave(c) ? "lv" : c.status === PP ? "pp" : DONE.has(c.status) ? "done" : STOPPED.has(c.status) ? "stop" : isOver(c) ? "over" : c.status ? "prog" : "todo";
@@ -962,15 +999,16 @@ function renderDash(){
   const cs = real(), mk = DAYOWNER.get(TODAY) || TODAY.slice(0,7);
   const month = cs.filter(c => monthOf(c) === mk), mDone = month.filter(c => DONE.has(c.status)).length;
   const open = cs.filter(c => !isClosed(c)), over = cs.filter(isOver);
-  const wkEnd = addDays(TODAY, 7), week = open.filter(c => c.sched && c.sched >= TODAY && c.sched <= wkEnd);
+  const corr = open.filter(c => c.status === "補正").sort((a,b) => (corrLeft(a) ?? 1e9) - (corrLeft(b) ?? 1e9));
+  const corrHot = corr.filter(c => ["soon","grace","over"].includes(corrLevel(c))), corrExp = corr.filter(c => ["grace","over"].includes(corrLevel(c)));
   const noNotice = open.filter(needsNotice);
   const p = month.length ? mDone / month.length : 0;
   $("#kpis").innerHTML = `
     <button type="button" class="kpi" data-go="month">${ring(p, "var(--ok)")}<span class="tx"><span class="k">${mLabel(mk)}進度</span><span class="v">${mDone}<span style="font-size:.5em;color:var(--ink-3)"> / ${month.length}</span></span><span class="s">完成率 ${Math.round(p*100)}%</span></span></button>
-    <button type="button" class="kpi" data-go="cal">${ring(Math.min(1, week.length/10), "var(--gnss)")}<span class="tx"><span class="k">未來 7 天</span><span class="v">${week.length}</span><span class="s">件待測</span></span></button>
+    <button type="button" class="kpi${corrExp.length ? " crit" : corrHot.length ? " warnk" : ""}" data-go="補正">${ring(corr.length ? corrHot.length/corr.length : 0, corrExp.length ? "var(--crit)" : "var(--warn)")}<span class="tx"><span class="k">補正中</span><span class="v">${corr.length}</span><span class="s">${corrExp.length ? `${corrExp.length} 件已到期` : corrHot.length ? `${corrHot.length} 件剩不到 3 天` : corr.length ? "期限內" : "沒有補正案件"}</span></span></button>
     <button type="button" class="kpi${over.length?" crit":""}" data-go="__overdue">${ring(open.length ? over.length/open.length : 0, "var(--crit)")}<span class="tx"><span class="k">逾期未結</span><span class="v">${over.length}</span><span class="s">未結案共 ${open.length} 件</span></span></button>
     <button type="button" class="kpi" data-go="__nonotice">${ring(open.length ? noNotice.length/open.length : 0, "var(--warn)")}<span class="tx"><span class="k">通知未寄</span><span class="v">${noNotice.length}</span><span class="s">未結案中尚未寄出</span></span></button>`;
-  const up = [...over, ...open.filter(c => !isOver(c) && c.sched)].sort((a,b) => (isOver(b)-isOver(a)) || sk(a).localeCompare(sk(b))).slice(0, 8);
+  const up = [...over.filter(c => c.status !== "補正"), ...open.filter(c => !isOver(c) && c.sched && c.status !== "補正")].sort((a,b) => (isOver(b)-isOver(a)) || sk(a).localeCompare(sk(b))).slice(0, 8);
   $("#upMeta").textContent = open.length ? `未結案 ${open.length} 件` : "";
   $("#upList").innerHTML = up.length ? up.map(c => { const s = secOf(c); return `<button type="button" class="up" data-id="${c.id}">
       <span class="dblock${c.sched===TODAY?" now":isOver(c)?" over":""}"><b>${md(c.sched)}</b><span>週${dow(c.sched)}${c.time ? " " + esc(c.time) : ""}</span></span>
@@ -981,9 +1019,13 @@ function renderDash(){
   const mx = Object.entries(mix).sort((a,b) => b[1]-a[1]), max = mx[0] ? mx[0][1] : 1;
   $("#mixMeta").textContent = mLabel(mk);
   $("#mix").innerHTML = mx.length ? mx.map(([t,n]) => `<div class="bar"><span>${esc(t)}</span><span class="tr"><i style="width:${n/max*100}%"></i></span><span class="c">${n}</span></div>`).join("") : `<div class="empty" style="padding:8px">本月還沒有案件</div>`;
-  const ag = {}; cs.filter(c => c.agent && (c.sched || "").startsWith(TODAY.slice(0,4))).forEach(c => ag[c.agent] = (ag[c.agent] || 0) + 1);
-  const ax = Object.entries(ag).sort((a,b) => b[1]-a[1]).slice(0,6), amax = ax[0] ? ax[0][1] : 1;
-  $("#agMix").innerHTML = ax.length ? ax.map(([t,n]) => `<div class="bar"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t)}</span><span class="tr"><i style="width:${n/amax*100}%;background:var(--tape)"></i></span><span class="c">${n}</span></div>`).join("") : `<div class="empty" style="padding:8px">還沒有代理人案件</div>`;
+  $("#corrMeta").textContent = corr.length ? `${corr.length} 件${corrExp.length ? `・${corrExp.length} 件已到期` : ""}` : "";
+  $("#corrList").innerHTML = corr.length ? corr.map(c => { const s = secOf(c), lv = corrLevel(c), due = corrDue(c);
+    return `<button type="button" class="cr ${lv}" data-id="${c.id}">
+      <span class="dblock${lv === "grace" || lv === "over" ? " over" : ""}">${due ? `<b>${md(due)}</b><span>到期・週${dow(due)}</span>` : `<b>—</b><span>未設日期</span>`}</span>
+      <span class="main"><b>${esc(c.type || "案件")}</b>　${esc(s ? s.name : c.sec || "")} <span class="num">${esc(c.lot || "")}</span><span class="l2">${esc(c.applicant || "—")}${c.agent ? `・代理 ${esc(c.agent)}` : ""}${corrDate(c) ? `・${md(corrDate(c))} 補正` : ""}</span></span>
+      <span class="left ${lv}">${lv === "grace" || lv === "over" ? "⚠ " : ""}${esc(corrText(c))}</span></button>`; }).join("")
+    : `<div class="empty" style="padding:18px">目前沒有補正中的案件</div>`;
 }
 
 /* ---------- 排程表：以今天為中心前後 15 天，捲動到上下邊緣時再載入 15 天 ---------- */
@@ -1012,6 +1054,24 @@ function matches(c, q){
   if (q) { const s = secOf(c); if (![c.type,c.no,c.sec,s&&s.name,s&&s.town,c.lot,c.applicant,c.agent,c.note,c.reason,c.status,c.leaveType,c.time,(c.inst||[]).join(" ")].join(" ").toLowerCase().includes(q)) return false; }
   return true;
 }
+/* 排程表上可直接修改的下拉選單：通知狀態、儀器 */
+const INST_OPTS = [["", "（未設定）"], ["經緯儀", "經緯儀"], ["衛星", "衛星"], ["經緯儀,衛星", "經緯儀＋衛星"], ["不需要儀器", "不需要儀器"]];
+const instKey = c => INSTS.filter(i => (c.inst || []).includes(i)).join(",");
+function noticeSel(c){
+  const v = c.notice || "";
+  return `<select class="cellsel ${NTC[v] || "empty"}" data-f="notice" data-id="${c.id}" aria-label="通知狀態" ${S.canWrite ? "" : "disabled"}><option value=""${v ? "" : " selected"}>（未設定）</option>${NOTICES.map(n => `<option${n === v ? " selected" : ""}>${n}</option>`).join("")}</select>`;
+}
+function instSel(c){
+  const v = instKey(c);
+  return `<select class="cellsel ${v ? "" : "empty"}" data-f="inst" data-id="${c.id}" aria-label="儀器" ${S.canWrite ? "" : "disabled"}>${INST_OPTS.map(([k, t]) => `<option value="${k}"${k === v ? " selected" : ""}>${t}</option>`).join("")}</select>`;
+}
+async function quickSet(sel){
+  const c = S.cases.get(sel.dataset.id); if (!c) return;
+  const n = {...c};
+  if (sel.dataset.f === "notice") n.notice = sel.value; else n.inst = sel.value ? sel.value.split(",") : [];
+  try { await saveCase(n); toast(sel.dataset.f === "notice" ? `通知狀態改為「${n.notice || "未設定"}」` : `儀器改為「${n.inst.join("＋") || "未設定"}」`); }
+  catch(e){ writeFailed(e); }
+}
 function rowHTML(c){
   const dcell = `<td class="dt">${c.sched ? `${md(c.sched)}<span>週${dow(c.sched)}</span>${c.time ? `<small class="tm">${esc(c.time)}</small>` : ""}` : `<span>未排</span>`}</td>`;
   if (c.slot) return `<tr class="slot${c.sched === TODAY ? " istoday" : ""}" data-slot="${c.sched}" data-d="${c.sched}">${dcell}<td colspan="11"><span class="plus">＋ 空檔</span>　點此排入案件${c.sched === TODAY ? "　（今天）" : ""}</td></tr>`;
@@ -1023,9 +1083,9 @@ function rowHTML(c){
     <td>${s ? `${esc(s.name)}<span class="sub">${esc(s.town)}・<span class="num">${esc(c.sec)}</span></span>` : c.sec ? `<span class="num">${esc(c.sec)}</span><span class="sub" style="color:var(--crit)">查無代碼</span>` : ""}</td>
     <td class="num">${esc(c.lot)}</td><td>${esc(c.applicant)}</td><td>${esc(c.agent)}</td>
     <td class="num">${esc(c.no)}</td><td class="num">${md(c.recv)}</td>
-    <td>${c.notice ? `<span class="nt ${NTC[c.notice] || ""}">${esc(c.notice)}</span>` : ""}</td>
-    <td>${(c.inst || []).map(i => `<span class="inst">${esc(i)}</span>`).join(" ")}</td>
-    <td><span class="st ${sc}">${esc(stText(c))}</span></td>
+    <td>${noticeSel(c)}</td>
+    <td>${instSel(c)}</td>
+    <td><span class="st ${sc}">${esc(stText(c))}</span>${c.status === "補正" ? `<small class="due ${corrLevel(c)}">${corrDue(c) ? `${md(corrDue(c))} 到期・` : ""}${esc(corrText(c))}</small>` : ""}</td>
     <td class="note">${ppLinks(c)}${esc(c.note)}</td></tr>`;
 }
 function renderList(){
@@ -1213,7 +1273,7 @@ function openDrawer(c, preset = {}){
   $("#cSec").value = v.sec || ""; $("#cLot").value = v.lot || ""; $("#cApp").value = v.applicant || "";
   $("#cAgent").value = v.agent || ""; $("#cReason").value = v.reason || ""; $("#cNote").value = v.note || "";
   S.notice = v.notice || ""; S.inst = [...(v.inst || [])]; S.status = isLeave(v) ? "" : (v.status || ""); S.lv = v.leaveType || "休假";
-  $("#cStampAt").value = v.statusAt || ""; $("#stampRow").hidden = !STAMPED.has(S.status);
+  $("#cStampAt").value = v.statusAt || ""; $("#stampRow").hidden = !STAMPED.has(S.status); corrInfo();
   drawNotice(); drawInst(); drawStatus(); drawLv(); agentHint(); setKind(v.kind || "case");
   const lk = c ? linkHTML(c) : "", lr = $("#linkRow"); lr.innerHTML = lk; lr.hidden = !lk;
   $("#ppPanel").hidden = true;
@@ -1235,6 +1295,7 @@ function collectForm(){
     notice:S.notice, sec:$("#cSec").value.trim(), lot:$("#cLot").value.trim(), applicant:$("#cApp").value.trim(),
     agent:$("#cAgent").value.trim(), inst:[...S.inst], status:S.status, note};
   if (STAMPED.has(c.status) && $("#cStampAt").value) c.statusAt = $("#cStampAt").value; else delete c.statusAt;
+  if (c.status === "補正" && c.statusAt) c.corrDue = addDays(c.statusAt.slice(0,10), CORR_DAYS); else delete c.corrDue;
   if (!c.type && !c.applicant && !c.lot) { toast("至少填種類、申請人或地號其中一項"); return null; }
   return tidy(c);
 }
@@ -1577,6 +1638,7 @@ $("#kpis").onclick = e => {
   go("list");
 };
 $("#upList").onclick = e => { const b = e.target.closest("[data-id]"); if (b) openDrawer(S.cases.get(b.dataset.id)); };
+$("#corrList").onclick = e => { const b = e.target.closest("[data-id]"); if (b) openDrawer(S.cases.get(b.dataset.id)); };
 $("#strip").onclick = e => {
   const b = e.target.closest("[data-day]"); if (!b) return; const day = b.dataset.day;
   const list = byDay().get(day) || [];
@@ -1601,6 +1663,7 @@ $("#listEmpty").onclick = e => {
   if (a === "new") openDrawer(null);
 };
 function rowsClick(e){
+  if (e.target.closest(".cellsel")) return;   // 下拉選單不開啟編輯畫面
   const m = e.target.closest("[data-more]"); if (m) { loadMore(Number(m.dataset.more)); return; }
   const g = e.target.closest("[data-goto]"); if (g) { gotoCase(g.dataset.goto); return; }
   const tr = e.target.closest("tr"); if (!tr) return;
@@ -1609,6 +1672,7 @@ function rowsClick(e){
 }
 $("#rows").onclick = rowsClick;
 $("#unschedRows").onclick = rowsClick;
+["#rows", "#unschedRows"].forEach(id => $(id).addEventListener("change", e => { if (e.target.classList.contains("cellsel")) quickSet(e.target); }));
 $("#cal").onclick = e => {
   const ev = e.target.closest(".ev[data-id]"); if (ev) { openDrawer(S.cases.get(ev.dataset.id)); return; }
   const d = e.target.closest(".day[data-date]"); if (d) openDrawer(null, {sched:d.dataset.date});
@@ -1635,11 +1699,23 @@ $("#dPostpone").onclick = () => { $("#ppPanel").hidden = false; $("#ppDate").val
 $("#ppCancel").onclick = () => { $("#ppPanel").hidden = true; };
 $("#ppGo").onclick = postpone;
 const nowLocal = () => { const d = new Date(); return `${iso(d)}T${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+function corrInfo(){
+  const isCorr = S.status === "補正", at = $("#cStampAt").value, el = $("#corrInfo");
+  $("#stampLbl").textContent = isCorr ? "補正日期時間（會寫入備註，可修改）" : "辦理時間（會寫入備註，可修改）";
+  el.hidden = !isCorr;
+  if (!isCorr) return;
+  if (!at) { el.textContent = "請填補正日期，系統會計算到期日"; el.className = "hint"; return; }
+  const c = {status:"補正", statusAt:at}, due = corrDue(c), lv = corrLevel(c);
+  el.innerHTML = `補正到期：<b class="num">${due.replace(/-/g, "/")}（週${dow(due)}）</b>・${esc(corrText(c))}<br><span style="color:var(--ink-3)">到期後寬限 ${CORR_GRACE} 天，${md(addDays(due, CORR_GRACE + 1))} 起列為逾期</span>`;
+  el.className = "hint due " + lv;
+}
 function writeStamp(){
   const ta = $("#cNote"), rest = ta.value.replace(STAMP_RE, ""), at = $("#cStampAt").value;
+  corrInfo();
   if (!STAMPED.has(S.status) || !at) { ta.value = rest; return; }
   const [d, t] = at.split("T");
-  ta.value = `【${S.status} ${d.replace(/-/g, "/")} ${t}】` + (rest ? "\n" + rest : "");
+  const due = S.status === "補正" ? `・到期 ${addDays(d, CORR_DAYS).slice(5).replace("-", "/")}` : "";
+  ta.value = `【${S.status} ${d.replace(/-/g, "/")} ${t}${due}】` + (rest ? "\n" + rest : "");
 }
 $("#statusGrid").onclick = e => {
   const b = e.target.closest("button"); if (!b) return;
