@@ -172,6 +172,19 @@ select.in{width:auto}
 .prog .lg{display:flex;gap:12px;font-size:12px;color:var(--ink-2);flex-wrap:wrap}
 .prog .lg span::before{content:"";display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px;background:var(--c)}
 .tw{overflow-x:auto}
+.sched{max-height:calc(100vh - 120px);min-height:380px;overflow:auto}
+.sched thead th{position:sticky;top:0;z-index:2}
+tbody tr.mrow td,tbody tr.mrow:hover td{background:var(--band);color:var(--band-ink);font-family:var(--f-num);font-weight:700;letter-spacing:.08em;padding:7px 12px;font-size:13px;border-left-color:var(--band)}
+tbody tr.mrow,tbody tr.more{cursor:default}
+tbody tr.more td,tbody tr.more:hover td{text-align:center;padding:10px;background:var(--surface-2)}
+tbody tr.marker td{color:var(--tape-ink);font-weight:600;background:var(--tape-soft)}
+.rng{display:flex;flex-direction:column;gap:2px;min-width:0}
+.rng b{font-size:18px;font-family:var(--f-num)}
+.rng span{font-size:12px;color:var(--ink-3)}
+.jump{display:inline-flex;gap:6px;align-items:center;font-size:13px;color:var(--ink-2)}
+.jump .in{width:auto;padding:5px 8px}
+details.unsched{border-bottom:1px solid var(--line-2)}
+details.unsched summary{padding:10px 16px;cursor:pointer;font-weight:600;font-size:13px;color:var(--warn)}
 table{border-collapse:separate;border-spacing:0;width:100%;font-size:13.5px}
 th{font-weight:600;font-size:11.5px;color:var(--ink-3);letter-spacing:.1em;text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap;background:var(--surface-2)}
 td{padding:9px 12px;border-bottom:1px solid var(--line-2);vertical-align:middle;white-space:nowrap}
@@ -446,7 +459,7 @@ a.btn{text-decoration:none}
       <section class="view" id="view-list" hidden>
         <div class="vhead">
           <h2><small>SCHEDULE</small>排程表</h2>
-          <span style="font-size:12px;color:var(--ink-3)">← → 鍵可快速切換月份</span>
+          <span style="font-size:12px;color:var(--ink-3)">以今天為中心前後 15 天，在表格內往上、往下捲動可看更早或更後的日期</span>
         </div>
         <div class="toolbar">
           <input class="in grow" id="q" type="search" placeholder="搜尋申請人、代理人、地號、案件編號、地段、備註　（按 / 快速搜尋）">
@@ -458,7 +471,9 @@ a.btn{text-decoration:none}
         </div>
         <div class="card">
           <div class="mhead" id="mhead"></div>
-          <div class="tw"><table>
+          <details class="unsched" id="unsched" hidden><summary>未排日期的案件 <span id="unschedN"></span> 件</summary>
+            <div class="tw"><table><tbody id="unschedRows"></tbody></table></div></details>
+          <div class="tw sched" id="schedScroll"><table>
             <thead><tr><th>排定日期／時間</th><th>種類</th><th>地段</th><th>地號</th><th>申請人</th><th>代理人</th><th>案件編號</th><th>收件</th><th>通知狀態</th><th>儀器</th><th>辦理情形</th><th>備註</th></tr></thead>
             <tbody id="rows"></tbody>
           </table></div>
@@ -626,12 +641,18 @@ a.btn{text-decoration:none}
 <script>
 (() => {
 const BUILD = "artifact";
-const VERSION = "3.4.0";
+const VERSION = "3.5.0";
 /* 離線版檢查更新：讀取 GitHub 公開倉庫的版本檔，新版本以 zip 提供下載 */
 const UPDATE_URL = "https://raw.githubusercontent.com/gn01918004-hub/work-paper/main/release/version.json";
 const DOWNLOAD_URL = "https://github.com/gn01918004-hub/work-paper/raw/main/release/survey-schedule.zip";
 /* 更新紀錄（與 CHANGELOG.md 同步）：第一筆為目前版本 */
 const CHANGELOG = [
+  {v:"3.5.0", date:"2026-10-20", title:"排程表改為今天前後 15 天、捲動載入", items:[
+    "排程表不再按月份分頁，打開就顯示今天前後 15 天，並自動捲到今天",
+    "在表格內往上捲到頂端會載入更早 15 天，往下捲到底會載入更後 15 天（也可按上下的按鈕）",
+    "表格內以月份標題列分隔，表頭固定在上方；「回到今天」按鈕與 T 鍵、「跳到」任一日期",
+    "未排日期的案件集中在表格上方，可展開查看",
+    "搜尋與篩選會跨所有日期"]},
   {v:"3.4.0", date:"2026-10-20", title:"自動備份到指定資料夾", items:[
     "左下角新增「自動備份」：選一個資料夾後，每次修改資料約 3 秒就自動存一份備份",
     "每天一個備份檔（survey-backup-日期.json），另外保留一份永遠最新的 survey-backup-latest.json",
@@ -965,90 +986,122 @@ function renderDash(){
   $("#agMix").innerHTML = ax.length ? ax.map(([t,n]) => `<div class="bar"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t)}</span><span class="tr"><i style="width:${n/amax*100}%;background:var(--tape)"></i></span><span class="c">${n}</span></div>`).join("") : `<div class="empty" style="padding:8px">還沒有代理人案件</div>`;
 }
 
-/* ---------- 排程表 ---------- */
+/* ---------- 排程表：以今天為中心前後 15 天，捲動到上下邊緣時再載入 15 天 ---------- */
+const SPAN = 15;
 function monthKeys(){
   const ks = new Set(Object.keys(S.months)); all().forEach(c => { const k = monthOf(c); if (k) ks.add(k); });
   return [...ks].sort();
 }
 const thisMonth = () => DAYOWNER.get(TODAY) || TODAY.slice(0,7);
 const daysOf = k => S.months[k] ? S.months[k].days : defaultDays(k);
-const shiftKey = (k, n) => { const [y,m] = k.split("-").map(Number); const d = new Date(y, m-1+n, 1); return `${d.getFullYear()}-${pad(d.getMonth()+1)}`; };
 const needsNotice = c => !isClosed(c) && c.notice !== "已寄出" && c.notice !== "不需要通知";
 const NTC = {"已寄出":"sent", "未寄出":"unsent", "不需要通知":"na"};
 const ppLinks = c => (c.postponedTo ? `<button type="button" class="plink" data-goto="${esc(c.postponedTo)}">→ 延期至 ${md(c.postponedToDate)}${c.postponedToTime ? " " + esc(c.postponedToTime) : ""}</button>` : "")
   + (c.postponedFrom ? `<button type="button" class="plink" data-goto="${esc(c.postponedFrom)}">← 由 ${md(c.postponedFromDate)}${c.postponedFromTime ? " " + esc(c.postponedFromTime) : ""} 延期</button>` : "");
-function monthSwitch(){
-  const k = S.month, isAll = k === "all";
-  const label = isAll ? "全部月份" : `${k.slice(0,4)}<small>年</small>${Number(k.slice(5))}<small>月</small>`;
-  let pop = "";
-  if (S.mpop) {
-    const y = S.mpopYear, cnt = {};
-    real().forEach(c => { const mk = monthOf(c); if (mk) cnt[mk] = (cnt[mk] || 0) + 1; });
-    pop = `<div class="mpop" role="dialog" aria-label="選擇月份">
-      <div class="yr"><button type="button" class="arr" data-pyear="-1" aria-label="上一年">‹</button><span>${y} 年</span><button type="button" class="arr" data-pyear="1" aria-label="下一年">›</button></div>
-      <div class="grid">${Array.from({length:12}, (_, i) => { const mk = `${y}-${pad(i+1)}`, n = cnt[mk] || 0;
-        return `<button type="button" data-pick="${mk}" aria-pressed="${mk===k}" class="${mk===thisMonth()?"now":""}"><b>${i+1}月</b><small>${n ? n + " 件" : "—"}</small></button>`; }).join("")}</div>
-      <button type="button" class="btn sm" data-pick="all">顯示全部月份</button></div>`;
-  }
-  return `<div class="msw"><button type="button" class="arr" data-mnav="-1" aria-label="上個月">‹</button><button type="button" class="cur" data-act="mpop" aria-expanded="${S.mpop}" aria-label="選擇月份">${label}<span class="caret">▾</span></button><button type="button" class="arr" data-mnav="1" aria-label="下個月">›</button>${k !== thisMonth() ? `<button type="button" class="btn sm" data-pick="${thisMonth()}">回到本月</button>` : ""}${pop}</div>`;
+const fmtDay = d => `${md(d)}（週${dow(d)}）`;
+const filtering = () => !!(S.q.trim() || S.fType || S.fStatus);
+function setRange(center){ S.from = addDays(center, -SPAN); S.to = addDays(center, SPAN); }
+function ensureRange(d){ if (!S.from) setRange(TODAY); if (!d) return; if (d < S.from) S.from = addDays(d, -3); if (d > S.to) S.to = addDays(d, 3); }
+function clearFilters(){ S.q = ""; S.fType = ""; S.fStatus = ""; $("#q").value = ""; $("#fType").value = ""; $("#fStatus").value = ""; }
+function matches(c, q){
+  if (S.fType && c.type !== S.fType) return false;
+  if (S.fStatus === "__open" && isClosed(c)) return false;
+  if (S.fStatus === "__overdue" && !isOver(c)) return false;
+  if (S.fStatus === "__nonotice" && !needsNotice(c)) return false;
+  if (S.fStatus && !S.fStatus.startsWith("__") && c.status !== S.fStatus) return false;
+  if (q) { const s = secOf(c); if (![c.type,c.no,c.sec,s&&s.name,s&&s.town,c.lot,c.applicant,c.agent,c.note,c.reason,c.status,c.leaveType,c.time,(c.inst||[]).join(" ")].join(" ").toLowerCase().includes(q)) return false; }
+  return true;
+}
+function rowHTML(c){
+  const dcell = `<td class="dt">${c.sched ? `${md(c.sched)}<span>週${dow(c.sched)}</span>${c.time ? `<small class="tm">${esc(c.time)}</small>` : ""}` : `<span>未排</span>`}</td>`;
+  if (c.slot) return `<tr class="slot${c.sched === TODAY ? " istoday" : ""}" data-slot="${c.sched}" data-d="${c.sched}">${dcell}<td colspan="11"><span class="plus">＋ 空檔</span>　點此排入案件${c.sched === TODAY ? "　（今天）" : ""}</td></tr>`;
+  if (c.marker) return `<tr class="marker" data-slot="${c.sched}" data-d="${c.sched}">${dcell}<td colspan="11">今天　非工作日，點此可排入案件</td></tr>`;
+  if (isLeave(c)) return `<tr class="leave ${LEAVES[c.leaveType]}" data-id="${c.id}" data-d="${c.sched}">${dcell}<td colspan="9">${esc(c.reason || c.leaveType)}</td><td><span class="st lv">${esc(c.leaveType)}</span></td><td class="note">${esc(c.note)}</td></tr>`;
+  const s = secOf(c), sc = stClass(c);
+  return `<tr class="s-${sc==="over"?"todo":sc}${isOver(c)?" over":""}${c.sched === TODAY ? " istoday" : ""}" data-id="${c.id}" data-d="${c.sched||""}">${dcell}
+    <td><b>${esc(c.type)}</b></td>
+    <td>${s ? `${esc(s.name)}<span class="sub">${esc(s.town)}・<span class="num">${esc(c.sec)}</span></span>` : c.sec ? `<span class="num">${esc(c.sec)}</span><span class="sub" style="color:var(--crit)">查無代碼</span>` : ""}</td>
+    <td class="num">${esc(c.lot)}</td><td>${esc(c.applicant)}</td><td>${esc(c.agent)}</td>
+    <td class="num">${esc(c.no)}</td><td class="num">${md(c.recv)}</td>
+    <td>${c.notice ? `<span class="nt ${NTC[c.notice] || ""}">${esc(c.notice)}</span>` : ""}</td>
+    <td>${(c.inst || []).map(i => `<span class="inst">${esc(i)}</span>`).join(" ")}</td>
+    <td><span class="st ${sc}">${esc(stText(c))}</span></td>
+    <td class="note">${ppLinks(c)}${esc(c.note)}</td></tr>`;
 }
 function renderList(){
-  if (!S.month) S.month = thisMonth();
-  const q = S.q.trim().toLowerCase(), filtering = q || S.fType || S.fStatus;
-  let rows = all().filter(c => {
-    if (S.month !== "all" && monthOf(c) !== S.month) return false;
-    if (S.fType && c.type !== S.fType) return false;
-    if (S.fStatus === "__open" && isClosed(c)) return false;
-    if (S.fStatus === "__overdue" && !isOver(c)) return false;
-    if (S.fStatus === "__nonotice" && !needsNotice(c)) return false;
-    if (S.fStatus && !S.fStatus.startsWith("__") && c.status !== S.fStatus) return false;
-    if (q) { const s = secOf(c); if (![c.type,c.no,c.sec,s&&s.name,s&&s.town,c.lot,c.applicant,c.agent,c.note,c.reason,c.status,c.leaveType,c.time,(c.inst||[]).join(" ")].join(" ").toLowerCase().includes(q)) return false; }
-    return true;
-  });
-  const days = S.month !== "all" ? daysOf(S.month) : null;
-  if (days && S.fSlots && !filtering) {
+  if (!S.from) setRange(TODAY);
+  const q = S.q.trim().toLowerCase(), F = filtering();
+  const inRange = c => c.sched >= S.from && c.sched <= S.to;
+  const rows = all().filter(c => c.sched && (F || inRange(c)) && matches(c, q));
+  const unsched = real().filter(c => !c.sched && matches(c, q));
+  if (!F) {
     const taken = new Set(rows.map(c => c.sched));
-    days.forEach(d => { if (!taken.has(d)) rows.push({slot:true, sched:d}); });
+    if (S.fSlots) for (let d = S.from; d <= S.to; d = addDays(d, 1)) if (!taken.has(d) && isWorkday(d)) { rows.push({slot:true, sched:d}); taken.add(d); }
+    if (!taken.has(TODAY) && inRange({sched:TODAY})) rows.push({marker:true, sched:TODAY});
   }
-  rows.sort((a,b) => sk(a).localeCompare(sk(b)) || (a.slot?1:0)-(b.slot?1:0) || (a.recv||"").localeCompare(b.recv||""));
+  rows.sort((a,b) => sk(a).localeCompare(sk(b)) || (a.slot||a.marker?1:0)-(b.slot||b.marker?1:0) || (a.recv||"").localeCompare(b.recv||""));
 
-  const mh = $("#mhead");
-  if (days) {
-    const mc = real().filter(c => monthOf(c) === S.month), n = mc.length || 1;
-    const cnt = {done:mc.filter(c => DONE.has(c.status)).length, prog:mc.filter(c => !isClosed(c) && !isOver(c)).length, over:mc.filter(isOver).length, pp:mc.filter(c => c.status === PP).length, stop:mc.filter(c => STOPPED.has(c.status)).length};
-    const busy = new Set(all().filter(c => monthOf(c) === S.month && c.sched).map(c => c.sched));
-    const free = days.filter(d => !busy.has(d)).length;
-    mh.innerHTML = `${monthSwitch()}
+  const mh = $("#mhead"), cases = rows.filter(c => c.id && !isLeave(c));
+  if (F) mh.innerHTML = `<div class="rng"><b>搜尋／篩選結果</b><span>所有日期，共 ${cases.length + unsched.length} 件</span></div><button class="btn sm" type="button" data-act="clear">清除篩選</button>`;
+  else {
+    const n = cases.length || 1;
+    const cnt = {done:cases.filter(c => DONE.has(c.status)).length, prog:cases.filter(c => !isClosed(c) && !isOver(c)).length, over:cases.filter(isOver).length, pp:cases.filter(c => c.status === PP).length, stop:cases.filter(c => STOPPED.has(c.status)).length};
+    mh.innerHTML = `<div class="rng"><b>${fmtDay(S.from)} – ${fmtDay(S.to)}</b><span>${S.from === addDays(TODAY, -SPAN) && S.to === addDays(TODAY, SPAN) ? `今天前後 ${SPAN} 天` : "已載入的日期範圍"}</span></div>
+      <div class="toolbar"><button class="btn sm" type="button" data-act="today">回到今天</button><label class="jump">跳到 <input class="in num" type="date" id="jumpDate" aria-label="跳到日期"></label></div>
       <div class="prog"><div class="tr"><i style="width:${cnt.done/n*100}%;background:var(--ok)"></i><i style="width:${cnt.prog/n*100}%;background:var(--gnss)"></i><i style="width:${cnt.over/n*100}%;background:var(--crit)"></i><i style="width:${cnt.pp/n*100}%;background:var(--warn)"></i><i style="width:${cnt.stop/n*100}%;background:var(--ink-3)"></i></div>
-        <div class="lg"><span style="--c:var(--ok)">完成 ${cnt.done}</span><span style="--c:var(--gnss)">進行中 ${cnt.prog}</span><span style="--c:var(--crit)">逾期 ${cnt.over}</span><span style="--c:var(--warn)">延期 ${cnt.pp}</span><span style="--c:var(--ink-3)">撤回／駁回 ${cnt.stop}</span><span style="--c:var(--line)">空檔 ${free} 天</span></div></div>
-      <button class="btn sm" type="button" data-act="editmonth">工作日 ${days.length} 天・調整</button>`;
-  } else mh.innerHTML = `${monthSwitch()}<div class="prog"><div class="lg"><span style="--c:var(--gnss)">顯示所有月份的案件</span></div></div>`;
+        <div class="lg"><span style="--c:var(--ok)">完成 ${cnt.done}</span><span style="--c:var(--gnss)">進行中 ${cnt.prog}</span><span style="--c:var(--crit)">逾期 ${cnt.over}</span><span style="--c:var(--warn)">延期 ${cnt.pp}</span><span style="--c:var(--ink-3)">撤回／駁回 ${cnt.stop}</span></div></div>
+      <button class="btn sm" type="button" data-act="editmonth">調整工作日</button>`;
+  }
   mh.hidden = false;
 
-  const dcell = c => `<td class="dt">${c.sched ? `${md(c.sched)}<span>週${dow(c.sched)}</span>${c.time ? `<small class="tm">${esc(c.time)}</small>` : ""}` : `<span>未排</span>`}</td>`;
-  $("#rows").innerHTML = rows.map(c => {
-    if (c.slot) return `<tr class="slot" data-slot="${c.sched}">${dcell(c)}<td colspan="11"><span class="plus">＋ 空檔</span>　點此排入案件</td></tr>`;
-    const today = c.sched === TODAY ? " istoday" : "";
-    if (isLeave(c)) return `<tr class="leave ${LEAVES[c.leaveType]}" data-id="${c.id}" data-d="${c.sched}">${dcell(c)}<td colspan="9">${esc(c.reason || c.leaveType)}</td><td><span class="st lv">${esc(c.leaveType)}</span></td><td class="note">${esc(c.note)}</td></tr>`;
-    const s = secOf(c), sc = stClass(c);
-    return `<tr class="s-${sc==="over"?"todo":sc}${isOver(c)?" over":""}${today}" data-id="${c.id}" data-d="${c.sched||""}">${dcell(c)}
-      <td><b>${esc(c.type)}</b></td>
-      <td>${s ? `${esc(s.name)}<span class="sub">${esc(s.town)}・<span class="num">${esc(c.sec)}</span></span>` : c.sec ? `<span class="num">${esc(c.sec)}</span><span class="sub" style="color:var(--crit)">查無代碼</span>` : ""}</td>
-      <td class="num">${esc(c.lot)}</td><td>${esc(c.applicant)}</td><td>${esc(c.agent)}</td>
-      <td class="num">${esc(c.no)}</td><td class="num">${md(c.recv)}</td>
-      <td>${c.notice ? `<span class="nt ${NTC[c.notice] || ""}">${esc(c.notice)}</span>` : ""}</td>
-      <td>${(c.inst || []).map(i => `<span class="inst">${esc(i)}</span>`).join(" ")}</td>
-      <td><span class="st ${sc}">${esc(stText(c))}</span></td>
-      <td class="note">${ppLinks(c)}${esc(c.note)}</td></tr>`;
-  }).join("");
+  let html = "", lastM = "";
+  if (!F) html += `<tr class="more"><td colspan="12"><button class="btn sm" type="button" data-more="-1">↑ 顯示更早 ${SPAN} 天</button></td></tr>`;
+  rows.forEach(c => { const m = c.sched.slice(0,7); if (m !== lastM) { html += `<tr class="mrow"><td colspan="12">${m.slice(0,4)} 年 ${Number(m.slice(5))} 月</td></tr>`; lastM = m; } html += rowHTML(c); });
+  if (!F) html += `<tr class="more"><td colspan="12"><button class="btn sm" type="button" data-more="1">↓ 顯示更後 ${SPAN} 天</button></td></tr>`;
+  $("#rows").innerHTML = html;
+  const us = $("#unsched"); us.hidden = !unsched.length; $("#unschedN").textContent = unsched.length;
+  $("#unschedRows").innerHTML = unsched.map(rowHTML).join("");
+  if (F && unsched.length) us.open = true;
+
   const em = $("#listEmpty");
-  if (!rows.length) {
-    em.hidden = false;
-    em.innerHTML = !S.loaded ? "載入案件中…" : filtering ? `沒有符合條件的案件。<button class="btn sm" type="button" data-act="clear">清除篩選</button>` :
-      `這個月份還沒有案件。<button class="btn sm primary" type="button" data-act="new">新增案件</button>`;
-  } else em.hidden = true;
-  const rc = rows.filter(c => !c.slot && !isLeave(c));
-  $("#count").textContent = rows.length ? `共 ${rc.length} 件・完成 ${rc.filter(c => DONE.has(c.status)).length}・未結 ${rc.filter(c => !isClosed(c)).length}${rc.some(c => c.status === PP) ? `・延期 ${rc.filter(c => c.status === PP).length}` : ""}` : "";
+  em.hidden = !(F && !rows.length && !unsched.length) && S.loaded;
+  em.innerHTML = !S.loaded ? "載入案件中…" : `沒有符合條件的案件。<button class="btn sm" type="button" data-act="clear">清除篩選</button>`;
+  $("#count").textContent = `${F ? "符合" : "這段期間"} ${cases.length} 件・完成 ${cases.filter(c => DONE.has(c.status)).length}・未結 ${cases.filter(c => !isClosed(c)).length}${unsched.length ? `・未排日期 ${unsched.length} 件` : ""}`;
+
+  if (S.centerOn) { const d = S.centerOn; S.centerOn = null; lockNow(); requestAnimationFrame(() => centerDate(d)); }
+}
+function centerDate(d, flash){
+  const sc = $("#schedScroll"), tr = sc.querySelector(`tr[data-d="${d}"]`) || [...sc.querySelectorAll("tr[data-d]")].find(r => r.dataset.d >= d);
+  if (!tr) return;
+  lockNow();
+  sc.scrollTop = Math.max(0, tr.offsetTop - sc.clientHeight / 3);
+  if (flash) { tr.classList.add("flash"); setTimeout(() => tr.classList.remove("flash"), 1700); }
+  unlockSoon(false);
+}
+let loadLock = false, unlockT;
+// 程式自己捲動（或縮小範圍）時先鎖住，等捲動事件送完再恢復「捲到邊緣就載入」
+const lockNow = () => { loadLock = true; clearTimeout(unlockT); };
+const unlockSoon = recheck => { clearTimeout(unlockT); unlockT = setTimeout(() => { loadLock = false; if (recheck) checkEdges(); }, 250); };
+function checkEdges(){
+  if (loadLock || filtering() || S.view !== "list") return;
+  const sc = $("#schedScroll");
+  if (sc.scrollTop < 60) loadMore(-1);
+  else if (sc.scrollHeight - sc.scrollTop - sc.clientHeight < 60) loadMore(1);
+}
+function loadMore(dir){
+  if (filtering()) return;
+  lockNow();
+  const sc = $("#schedScroll"), h0 = sc.scrollHeight, t0 = sc.scrollTop;
+  if (dir < 0) S.from = addDays(S.from, -SPAN); else S.to = addDays(S.to, SPAN);
+  renderList();
+  if (dir < 0) sc.scrollTop = t0 + (sc.scrollHeight - h0);
+  unlockSoon(true);
+}
+function backToToday(){ lockNow(); clearFilters(); setRange(TODAY); S.centerOn = TODAY; renderList(); }
+function gotoDate(d){
+  lockNow(); clearFilters(); ensureRange(d);
+  if (S.view !== "list") go("list"); else renderList();
+  requestAnimationFrame(() => centerDate(d, true));
 }
 
 /* ---------- 行事曆 ---------- */
@@ -1190,7 +1243,7 @@ async function submitDrawer(){
   const c = collectForm(); if (!c) return;
   const isNew = !c.id;
   closeDrawer();
-  try { await saveCase(c); toast(isNew ? "已新增" : "已更新"); if (c.sched && S.view === "list" && S.month !== "all") { S.month = monthOf(c); renderList(); } }
+  try { await saveCase(c); toast(isNew ? "已新增" : "已更新"); if (c.sched && S.view === "list" && !filtering()) { ensureRange(c.sched); renderList(); } }
   catch(e){ writeFailed(e); }
 }
 async function postpone(){
@@ -1214,17 +1267,19 @@ function gotoCase(id){
   const c = S.cases.get(id);
   if (!c) { toast("找不到這筆案件，可能已被刪除"); return; }
   closeDrawer();
-  S.month = monthOf(c) || "all"; S.mpop = false;
-  S.q = ""; $("#q").value = ""; S.fType = ""; $("#fType").value = ""; S.fStatus = ""; $("#fStatus").value = "";
-  go("list");
-  const tr = document.querySelector(`#rows tr[data-id="${CSS.escape(id)}"]`);
-  if (tr) { tr.scrollIntoView({block:"center", behavior:"smooth"}); tr.classList.add("flash"); setTimeout(() => tr.classList.remove("flash"), 1700); }
+  clearFilters(); ensureRange(c.sched);
+  if (S.view !== "list") go("list"); else renderList();
+  if (!c.sched) $("#unsched").open = true;
+  requestAnimationFrame(() => {
+    const tr = document.querySelector(`#rows tr[data-id="${CSS.escape(id)}"], #unschedRows tr[data-id="${CSS.escape(id)}"]`);
+    if (tr) { tr.scrollIntoView({block:"center", behavior:"smooth"}); tr.classList.add("flash"); setTimeout(() => tr.classList.remove("flash"), 1700); }
+  });
 }
 
 /* ---------- 工作日設定（母表） ---------- */
 function openMonth(key){
   S.mEdit = key;
-  $("#mPick").value = key; $("#mPick").disabled = true;
+  $("#mPick").value = key; $("#mPick").disabled = false;
   $("#mTitle").textContent = `調整 ${key.slice(0,4)} 年 ${mLabel(key)}工作日`;
   $("#mSave").textContent = "儲存";
   $("#mDelWrap").innerHTML = S.months[key] ? `<button class="btn danger sm" type="button" id="mDel">恢復預設</button>` : "";
@@ -1505,6 +1560,8 @@ $("#banner").addEventListener("click", e => { if (e.target.id === "abBanner") AB
 
 /* ---------- 事件 ---------- */
 function go(v){
+  if (v === "list" && S.view !== "list") S.centerOn = S.centerOn || (S.listSeen ? null : TODAY);
+  if (v === "list") S.listSeen = true;
   S.view = v;
   document.querySelectorAll("#nav button").forEach(b => b.dataset.view === v ? b.setAttribute("aria-current", "page") : b.removeAttribute("aria-current"));
   ["dash","list","cal","sec","ref"].forEach(x => $("#view-"+x).hidden = x !== v);
@@ -1515,30 +1572,26 @@ $("#nav").onclick = e => { const b = e.target.closest("button[data-view]"); if (
 $("#kpis").onclick = e => {
   const b = e.target.closest("[data-go]"); if (!b) return; const a = b.dataset.go;
   if (a === "cal") { S.calMonth = TODAY.slice(0,7); go("cal"); return; }
-  S.fStatus = a === "month" ? "" : a; $("#fStatus").value = S.fStatus;
-  S.month = a === "month" ? (DAYOWNER.get(TODAY) || TODAY.slice(0,7)) : "all"; go("list");
+  clearFilters();
+  if (a === "month") { setRange(TODAY); S.centerOn = TODAY; } else { S.fStatus = a; $("#fStatus").value = a; }
+  go("list");
 };
 $("#upList").onclick = e => { const b = e.target.closest("[data-id]"); if (b) openDrawer(S.cases.get(b.dataset.id)); };
 $("#strip").onclick = e => {
   const b = e.target.closest("[data-day]"); if (!b) return; const day = b.dataset.day;
   const list = byDay().get(day) || [];
   if (!list.length) { openDrawer(null, {sched:day}); return; }
-  S.month = DAYOWNER.get(day) || day.slice(0,7); S.q = ""; $("#q").value = ""; S.fType = ""; S.fStatus = ""; $("#fStatus").value = "";
-  go("list");
-  const tr = document.querySelector(`#rows tr[data-d="${day}"]`);
-  if (tr) { tr.scrollIntoView({block:"center", behavior:"smooth"}); tr.classList.add("flash"); setTimeout(() => tr.classList.remove("flash"), 1700); }
+  gotoDate(day);
 };
-const navMonth = n => { S.month = shiftKey(S.month === "all" ? thisMonth() : S.month, n); S.mpop = false; renderList(); };
 $("#mhead").onclick = e => {
   const t = e.target.closest("button"); if (!t) return;
-  if (t.dataset.act === "editmonth") { openMonth(S.month); return; }
-  if (t.dataset.act === "mpop") { S.mpop = !S.mpop; S.mpopYear = Number((S.month === "all" ? thisMonth() : S.month).slice(0,4)); renderList(); return; }
-  if (t.dataset.pyear) { S.mpopYear += Number(t.dataset.pyear); renderList(); return; }
-  if (t.dataset.mnav) { navMonth(Number(t.dataset.mnav)); return; }
-  if (t.dataset.pick) { S.month = t.dataset.pick; S.mpop = false; if (S.month !== "all" && S.q) { S.q = ""; $("#q").value = ""; } renderList(); }
+  if (t.dataset.act === "editmonth") openMonth(thisMonth());
+  else if (t.dataset.act === "today") backToToday();
+  else if (t.dataset.act === "clear") { clearFilters(); S.centerOn = TODAY; renderList(); }
 };
-document.addEventListener("click", e => { if (S.mpop && !e.target.closest(".msw")) { S.mpop = false; renderList(); } });
-$("#q").oninput = e => { S.q = e.target.value; if (S.q && S.month !== "all") S.month = "all"; renderList(); };
+$("#mhead").addEventListener("change", e => { if (e.target.id === "jumpDate" && e.target.value) gotoDate(e.target.value); });
+$("#schedScroll").addEventListener("scroll", checkEdges, {passive:true});
+$("#q").oninput = e => { const was = filtering(); S.q = e.target.value; if (was && !filtering()) S.centerOn = TODAY; renderList(); };
 $("#fType").onchange = e => { S.fType = e.target.value; renderList(); };
 $("#fStatus").onchange = e => { S.fStatus = e.target.value; renderList(); };
 $("#fSlots").onchange = e => { S.fSlots = e.target.checked; renderList(); };
@@ -1547,12 +1600,15 @@ $("#listEmpty").onclick = e => {
   if (a === "clear") { S.q = ""; S.fType = ""; S.fStatus = ""; $("#q").value = ""; $("#fType").value = ""; $("#fStatus").value = ""; renderList(); }
   if (a === "new") openDrawer(null);
 };
-$("#rows").onclick = e => {
+function rowsClick(e){
+  const m = e.target.closest("[data-more]"); if (m) { loadMore(Number(m.dataset.more)); return; }
   const g = e.target.closest("[data-goto]"); if (g) { gotoCase(g.dataset.goto); return; }
   const tr = e.target.closest("tr"); if (!tr) return;
   if (tr.dataset.slot) openDrawer(null, {sched:tr.dataset.slot});
   else if (tr.dataset.id) openDrawer(S.cases.get(tr.dataset.id));
-};
+}
+$("#rows").onclick = rowsClick;
+$("#unschedRows").onclick = rowsClick;
 $("#cal").onclick = e => {
   const ev = e.target.closest(".ev[data-id]"); if (ev) { openDrawer(S.cases.get(ev.dataset.id)); return; }
   const d = e.target.closest(".day[data-date]"); if (d) openDrawer(null, {sched:d.dataset.date});
@@ -1661,7 +1717,7 @@ $("#delWrap").onclick = async e => {
   else if (id === "dDelYes") { const cid = S.editing; closeDrawer(); try { await deleteCase(cid); toast("已刪除"); } catch(err){ writeFailed(err); } }
 };
 
-$("#mPick").onchange = () => { const k = $("#mPick").value; if (!k) return; S.mDays = new Set(S.months[k] ? S.months[k].days : defaultDays(k)); drawMonthGrid(); };
+$("#mPick").onchange = () => { const k = $("#mPick").value; if (k) openMonth(k); };
 $("#mGrid").onclick = e => { const b = e.target.closest("button[data-d]"); if (!b || b.disabled) return; const d = b.dataset.d; S.mDays.has(d) ? S.mDays.delete(d) : S.mDays.add(d); drawMonthGrid(); };
 $("#mClose").onclick = closeMonth; $("#mCancel").onclick = closeMonth; $("#mSave").onclick = saveMonth;
 $("#mDelWrap").onclick = async e => {
@@ -1714,11 +1770,11 @@ $("#typeForm").onsubmit = async e => {
 $("#typeTags").onclick = async e => { const b = e.target.closest("[data-del-type]"); if (!b) return; S.types.splice(Number(b.dataset.delType), 1); try { await saveLists(); } catch(err){ writeFailed(err); } };
 
 document.addEventListener("keydown", e => {
-  if (e.key === "Escape") { if (!$("#adlg").hidden) closeAb(); else if (!$("#udlg").hidden) closeUpd(); else if (!$("#vdlg").hidden) closeVer(); else if (!$("#drawer").hidden) closeDrawer(); else if (!$("#mdlg").hidden) closeMonth(); else if (S.mpop) { S.mpop = false; renderList(); } return; }
+  if (e.key === "Escape") { if (!$("#adlg").hidden) closeAb(); else if (!$("#udlg").hidden) closeUpd(); else if (!$("#vdlg").hidden) closeVer(); else if (!$("#drawer").hidden) closeDrawer(); else if (!$("#mdlg").hidden) closeMonth(); return; }
   const typing = /INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName || "");
   if (typing || e.metaKey || e.ctrlKey || e.altKey || !$("#drawer").hidden || !$("#mdlg").hidden || !$("#vdlg").hidden || !$("#udlg").hidden || !$("#adlg").hidden) return;
   if (e.key === "n" || e.key === "N") { e.preventDefault(); openDrawer(null); }
-  if (S.view === "list" && (e.key === "ArrowLeft" || e.key === "ArrowRight")) { e.preventDefault(); navMonth(e.key === "ArrowLeft" ? -1 : 1); return; }
+  if (S.view === "list" && (e.key === "t" || e.key === "T")) { e.preventDefault(); backToToday(); return; }
   if (e.key === "/") { e.preventDefault(); if (S.view !== "list") go("list"); $("#q").focus(); }
 });
 
