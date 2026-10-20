@@ -1,0 +1,3 @@
+dist/測量案件排程/
+dist/*.zip
+__pycache__/
