@@ -30,7 +30,12 @@ def build(seed: bool) -> None:
         html = html.replace("const SEED = null;", "const SEED = " + SEED.read_text(encoding="utf-8").replace("</", "<\\/") + ";")
     html = html.replace('<meta name="claude:viewport-fit-sides" content="cover">\n', "")
     # 線上版由平台補上 <head>；離線版自己補
-    title, rest = html.split("\n", 1)
+    # 開頭的 <title> 與 <link rel="icon">（分頁縮圖）放進 <head>
+    lines = html.split("\n")
+    head = []
+    while lines and (lines[0].startswith("<title>") or lines[0].startswith('<link rel="icon"')):
+        head.append(lines.pop(0))
+    title, rest = "".join(head), "\n".join(lines)
     doc = ('<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8">'
            '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">'
            + title +

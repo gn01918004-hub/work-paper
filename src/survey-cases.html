@@ -1,4 +1,5 @@
 <title>測量案件排程</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 34 34'%3E%3Crect width='34' height='34' rx='8' fill='%230f1b2d'/%3E%3Cpath d='M17 5 L30 28 H4 Z' fill='none' stroke='%23ff2f7d' stroke-width='2.8' stroke-linejoin='round'/%3E%3Ccircle cx='17' cy='20.5' r='3.3' fill='%232fd0e2'/%3E%3C/svg%3E">
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Noto+Sans+TC:wght@400;500;700;900&family=IBM+Plex+Mono:wght@400;500&display=swap">
@@ -384,6 +385,22 @@ a.btn{text-decoration:none}
 .cellsel.unsent{color:var(--crit);border-color:color-mix(in srgb,var(--crit) 45%,var(--line))}
 .cellsel.na{color:var(--ink-3);font-weight:400}
 .cellsel.empty{color:var(--ink-3);border-style:dashed;font-weight:400}
+/* 連件 */
+.nofield{display:flex;gap:6px}
+.nofield .in{flex:1}
+.lkbox{display:flex;flex-direction:column;gap:8px;border:1px solid var(--line);border-radius:10px;padding:10px;background:var(--surface-2)}
+.lkrow{display:grid;grid-template-columns:22px minmax(0,1.1fr) minmax(0,1fr) minmax(0,.8fr) minmax(0,.9fr) auto auto;gap:6px;align-items:center}
+.lkrow .in{padding:6px 8px;font-size:13px}
+.lkrow .lkn{font-family:var(--f-num);font-weight:700;color:var(--ink-3);text-align:center}
+.lkrow .lksec{grid-column:2/-1;font-size:11.5px;color:var(--ink-3);margin-top:-4px}
+.lkrow .lksec.bad{color:var(--crit)}
+.lkhint{font-size:12px;color:var(--ink-3)}
+@media (max-width:520px){.lkrow{grid-template-columns:22px 1fr 1fr}.lkrow .lksec{grid-column:2/-1}}
+.lk{position:relative;display:inline-block;margin-left:4px;font-family:var(--f-num);font-size:11.5px;font-weight:700;color:var(--gnss);background:var(--gnss-soft);border-radius:999px;padding:0 7px;line-height:18px;vertical-align:1px;cursor:help;outline:none}
+.lk .lkp{display:none;position:absolute;z-index:6;top:calc(100% + 6px);left:0;min-width:220px;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);padding:8px 10px;font-family:var(--f-ui);font-weight:400;font-size:12.5px;line-height:1.6;white-space:nowrap;text-align:left}
+.lk:hover .lkp,.lk:focus .lkp{display:block}
+.lk .lkp b{font-family:var(--f-num)}
+.lkb{display:inline-block;margin-left:6px;font-size:11px;font-weight:700;letter-spacing:.04em;color:#fff;background:var(--gnss);border-radius:4px;padding:0 6px;line-height:17px;vertical-align:1px}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(22px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:9px 18px;border-radius:999px;z-index:40;font-size:13px;box-shadow:var(--shadow)}
 
 /* ---------- narrow ---------- */
@@ -604,7 +621,9 @@ a.btn{text-decoration:none}
     <div class="f" data-for="case"><label for="cApp">申請人</label><input class="in" id="cApp"></div>
     <div class="f" data-for="case"><label for="cAgent">代理人</label><input class="in" id="cAgent" list="dlAgents"><span class="hint" id="agentHint"></span></div>
     <div class="f" data-for="case"><label for="cRecv">收件時間</label><input class="in num" type="date" id="cRecv"></div>
-    <div class="f" data-for="case"><label for="cNo">案件編號</label><input class="in num" id="cNo" inputmode="numeric"></div>
+    <div class="f" data-for="case"><label for="cNo">案件編號</label><div class="nofield"><input class="in num" id="cNo" inputmode="numeric"><button class="btn sm" type="button" id="addLink" title="加入連件">＋ 連件</button></div></div>
+    <div class="f full" data-for="case" id="linkBox" hidden><span class="lb">連件（共用申請人、代理人、收件、排定日期時間、通知、儀器、辦理情形、備註）</span>
+      <div class="lkbox"><div id="linkList"></div><div class="toolbar"><button class="btn sm" type="button" id="addLink2">＋ 再加一件</button><span class="lkhint">第 1 件為上方的主件；「拆件」會把該件變成獨立案件</span></div></div></div>
     <div class="f full" data-for="case"><span class="lb">通知狀態</span><div class="seg" id="noticeSeg"></div></div>
     <div class="f full" data-for="case"><span class="lb">儀器（可複選）</span><div class="seg" id="instSeg"></div></div>
     <div class="f full" data-for="case"><span class="lb">辦理情形</span><div class="stgrid" id="statusGrid"></div></div>
@@ -659,12 +678,19 @@ a.btn{text-decoration:none}
 <script>
 (() => {
 const BUILD = "artifact";
-const VERSION = "3.6.0";
+const VERSION = "3.7.0";
 /* 離線版檢查更新：讀取 GitHub 公開倉庫的版本檔，新版本以 zip 提供下載 */
 const UPDATE_URL = "https://raw.githubusercontent.com/gn01918004-hub/work-paper/main/release/version.json";
 const DOWNLOAD_URL = "https://github.com/gn01918004-hub/work-paper/raw/main/release/survey-schedule.zip";
 /* 更新紀錄（與 CHANGELOG.md 同步）：第一筆為目前版本 */
 const CHANGELOG = [
+  {v:"3.7.0", date:"2026-10-27", title:"連件與拆件、分頁縮圖", items:[
+    "案件畫面的案件編號旁新增「連件」，可加入多件，每件填案件編號、種類、段代碼、地號",
+    "連件共用第一件的申請人、代理人、收件時間、排定日期時間、通知狀態、儀器、辦理情形、備註",
+    "各畫面壓縮成一格：顯示第一件並標示「＋N」，滑鼠移上去可看全部連件；搜尋也找得到子件",
+    "子件可按「拆件」變成獨立案件，之後獨立顯示與修改",
+    "匯出 Excel 時連件各佔一列，備註註明主件",
+    "瀏覽器分頁顯示三角點 LOGO 縮圖"]},
   {v:"3.6.0", date:"2026-10-20", title:"補正期限追蹤、排程表直接改通知與儀器", items:[
     "選「補正」時自動計算到期日：補正日隔日起算第 15 日（例：10/20 補正 → 11/04 到期）",
     "補正案件到期後再寬限 2 天才列為逾期，不再依排定日期判斷",
@@ -757,7 +783,7 @@ const HOLIDAYS = {"2026-01-01":"元旦","2026-02-16":"春節","2026-02-17":"春�
 const S = {
   cases:new Map(), agents:[], types:DEFAULT_TYPES.slice(), sections:DEFAULT_SECTIONS.map(s => ({...s})), months:{},
   migrations:[], view:"dash", month:null, calMonth:null, q:"", fType:"", fStatus:"", fSlots:true,
-  editing:null, kind:"case", notice:"", inst:[], status:"", lv:"休假", mpop:false, mpopYear:2026,
+  subs:[], editing:null, kind:"case", notice:"", inst:[], status:"", lv:"休假", mpop:false, mpopYear:2026,
   mode:"loading", loaded:false, canWrite:true, secEdit:null, town:"", mEdit:null, mDays:new Set(),
 };
 let SECMAP = new Map(), DAYOWNER = new Map();
@@ -984,7 +1010,7 @@ function renderBand(){
     return `<button type="button" class="cell${day===TODAY?" now":""}${leave?" off " + LEAVES[leave.leaveType]:""}" data-day="${day}">
       <span class="d"><b>${md(day)}</b><span>週${dow(day)}</span></span>
       ${leave ? `<span class="t leave">${esc(leave.leaveType)}${leave.reason && leave.reason !== leave.leaveType ? " " + esc(leave.reason) : ""}</span>` : ""}
-      ${cs.slice(0,2).map(c => `<span class="t ${DONE.has(c.status)?"done":isOver(c)?"over":""}">${c.time ? esc(c.time) + " " : ""}${esc(c.type || "案件")} ${esc(c.lot || "")}</span>`).join("")}
+      ${cs.slice(0,2).map(c => `<span class="t ${DONE.has(c.status)?"done":isOver(c)?"over":""}">${c.time ? esc(c.time) + " " : ""}${esc(c.type || "案件")} ${esc(c.lot || "")}${lkText(c)}</span>`).join("")}
       ${cs.length > 2 ? `<span class="free">另 ${cs.length-2} 件</span>` : !list.length ? `<span class="free">空檔</span>` : ""}
     </button>`;
   }).join("");
@@ -1012,7 +1038,7 @@ function renderDash(){
   $("#upMeta").textContent = open.length ? `未結案 ${open.length} 件` : "";
   $("#upList").innerHTML = up.length ? up.map(c => { const s = secOf(c); return `<button type="button" class="up" data-id="${c.id}">
       <span class="dblock${c.sched===TODAY?" now":isOver(c)?" over":""}"><b>${md(c.sched)}</b><span>週${dow(c.sched)}${c.time ? " " + esc(c.time) : ""}</span></span>
-      <span class="main"><b>${esc(c.type || "案件")}</b>　${esc(s ? s.name : c.sec || "")} <span class="num">${esc(c.lot || "")}</span><span class="l2">${esc(c.applicant || "—")}${c.agent ? `・代理 ${esc(c.agent)}` : ""}${s ? `・${esc(s.town)}` : ""}</span></span>
+      <span class="main"><b>${esc(c.type || "案件")}</b>　${esc(s ? s.name : c.sec || "")} <span class="num">${esc(c.lot || "")}</span>${lkChip(c)}<span class="l2">${esc(c.applicant || "—")}${c.agent ? `・代理 ${esc(c.agent)}` : ""}${s ? `・${esc(s.town)}` : ""}</span></span>
       <span class="st ${stClass(c)}">${esc(stText(c))}</span></button>`; }).join("")
     : `<div class="empty">${S.loaded ? "目前沒有未結案件。按「新增案件」排入下一件。" : "載入中…"}</div>`;
   const mix = {}; month.forEach(c => mix[c.type || "未分類"] = (mix[c.type || "未分類"] || 0) + 1);
@@ -1023,7 +1049,7 @@ function renderDash(){
   $("#corrList").innerHTML = corr.length ? corr.map(c => { const s = secOf(c), lv = corrLevel(c), due = corrDue(c);
     return `<button type="button" class="cr ${lv}" data-id="${c.id}">
       <span class="dblock${lv === "grace" || lv === "over" ? " over" : ""}">${due ? `<b>${md(due)}</b><span>到期・週${dow(due)}</span>` : `<b>—</b><span>未設日期</span>`}</span>
-      <span class="main"><b>${esc(c.type || "案件")}</b>　${esc(s ? s.name : c.sec || "")} <span class="num">${esc(c.lot || "")}</span><span class="l2">${esc(c.applicant || "—")}${c.agent ? `・代理 ${esc(c.agent)}` : ""}${corrDate(c) ? `・${md(corrDate(c))} 補正` : ""}</span></span>
+      <span class="main"><b>${esc(c.type || "案件")}</b>　${esc(s ? s.name : c.sec || "")} <span class="num">${esc(c.lot || "")}</span>${lkChip(c)}<span class="l2">${esc(c.applicant || "—")}${c.agent ? `・代理 ${esc(c.agent)}` : ""}${corrDate(c) ? `・${md(corrDate(c))} 補正` : ""}</span></span>
       <span class="left ${lv}">${lv === "grace" || lv === "over" ? "⚠ " : ""}${esc(corrText(c))}</span></button>`; }).join("")
     : `<div class="empty" style="padding:18px">目前沒有補正中的案件</div>`;
 }
@@ -1051,9 +1077,21 @@ function matches(c, q){
   if (S.fStatus === "__overdue" && !isOver(c)) return false;
   if (S.fStatus === "__nonotice" && !needsNotice(c)) return false;
   if (S.fStatus && !S.fStatus.startsWith("__") && c.status !== S.fStatus) return false;
-  if (q) { const s = secOf(c); if (![c.type,c.no,c.sec,s&&s.name,s&&s.town,c.lot,c.applicant,c.agent,c.note,c.reason,c.status,c.leaveType,c.time,(c.inst||[]).join(" ")].join(" ").toLowerCase().includes(q)) return false; }
+  if (q) { const s = secOf(c); if (![c.type,c.no,c.sec,s&&s.name,s&&s.town,c.lot,c.applicant,c.agent,c.note,c.reason,c.status,c.leaveType,c.time,(c.inst||[]).join(" "),...subHay(c)].join(" ").toLowerCase().includes(q)) return false; }
   return true;
 }
+/* 連件：子件只記自己的案件編號、種類、段代碼、地號，其餘欄位與主件（第一件）共用 */
+const subsOf = c => (c.subs || []).filter(x => x && (x.no || x.lot || x.sec));
+const lkN = c => subsOf(c).length;
+const subLine = x => { const sc = SECMAP.get(String(x.sec || "")); return [x.no ? `<b>${esc(x.no)}</b>` : "", esc(x.type || ""), esc(sc ? sc.name : x.sec || ""), x.lot ? `<b>${esc(x.lot)}</b>` : ""].filter(Boolean).join("　"); };
+function lkChip(c){
+  const n = lkN(c); if (!n) return "";
+  const head = [c.no ? `<b>${esc(c.no)}</b>` : "", esc(c.type || ""), esc(secOf(c)?.name || c.sec || ""), c.lot ? `<b>${esc(c.lot)}</b>` : ""].filter(Boolean).join("　");
+  return `<span class="lk" tabindex="0" aria-label="另有 ${n} 件連件">＋${n}<span class="lkp" role="tooltip">連件共 ${n + 1} 件<br>1. ${head}${subsOf(c).map((x, i) => `<br>${i + 2}. ${subLine(x)}`).join("")}</span></span>`;
+}
+const lkText = c => lkN(c) ? ` ＋${lkN(c)}` : "";
+const subHay = c => subsOf(c).flatMap(x => [x.no, x.type, x.sec, SECMAP.get(String(x.sec || ""))?.name, x.lot]);
+
 /* 排程表上可直接修改的下拉選單：通知狀態、儀器 */
 const INST_OPTS = [["", "（未設定）"], ["經緯儀", "經緯儀"], ["衛星", "衛星"], ["經緯儀,衛星", "經緯儀＋衛星"], ["不需要儀器", "不需要儀器"]];
 const instKey = c => INSTS.filter(i => (c.inst || []).includes(i)).join(",");
@@ -1079,10 +1117,10 @@ function rowHTML(c){
   if (isLeave(c)) return `<tr class="leave ${LEAVES[c.leaveType]}" data-id="${c.id}" data-d="${c.sched}">${dcell}<td colspan="9">${esc(c.reason || c.leaveType)}</td><td><span class="st lv">${esc(c.leaveType)}</span></td><td class="note">${esc(c.note)}</td></tr>`;
   const s = secOf(c), sc = stClass(c);
   return `<tr class="s-${sc==="over"?"todo":sc}${isOver(c)?" over":""}${c.sched === TODAY ? " istoday" : ""}" data-id="${c.id}" data-d="${c.sched||""}">${dcell}
-    <td><b>${esc(c.type)}</b></td>
+    <td><b>${esc(c.type)}</b>${lkN(c) ? `<span class="lkb">連件 ${lkN(c) + 1}</span>` : ""}</td>
     <td>${s ? `${esc(s.name)}<span class="sub">${esc(s.town)}・<span class="num">${esc(c.sec)}</span></span>` : c.sec ? `<span class="num">${esc(c.sec)}</span><span class="sub" style="color:var(--crit)">查無代碼</span>` : ""}</td>
-    <td class="num">${esc(c.lot)}</td><td>${esc(c.applicant)}</td><td>${esc(c.agent)}</td>
-    <td class="num">${esc(c.no)}</td><td class="num">${md(c.recv)}</td>
+    <td class="num">${esc(c.lot)}${lkChip(c)}</td><td>${esc(c.applicant)}</td><td>${esc(c.agent)}</td>
+    <td class="num">${esc(c.no)}${lkChip(c)}</td><td class="num">${md(c.recv)}</td>
     <td>${noticeSel(c)}</td>
     <td>${instSel(c)}</td>
     <td><span class="st ${sc}">${esc(stText(c))}</span>${c.status === "補正" ? `<small class="due ${corrLevel(c)}">${corrDue(c) ? `${md(corrDue(c))} 到期・` : ""}${esc(corrText(c))}</small>` : ""}</td>
@@ -1179,10 +1217,10 @@ function renderCal(){
     const off = wd && !isWorkday(k) && !list.length;
     html += `<div class="day${d.getMonth()!==m-1?" out":""}${k===TODAY?" now":""}${off?" off":""}" data-date="${k}"><span class="n"><b>${d.getDate()}</b><small>${HOLIDAYS[k] || ""}</small></span>` +
       list.map(c => isLeave(c) ? `<div class="ev leave ${LEAVES[c.leaveType]}" data-id="${c.id}" title="${esc([c.leaveType, c.time, c.reason].filter(Boolean).join("・"))}">${esc(c.leaveType)}${c.reason && c.reason !== c.leaveType ? ` <span class="x">${esc(c.reason)}</span>` : ""}</div>`
-        : `<div class="ev evc ${DONE.has(c.status)?"done":c.status===PP?"pp":isOver(c)?"over":""}" data-id="${c.id}" title="${esc([c.type, c.time, c.no && "編號 " + c.no, secOf(c)?.name, c.lot, c.applicant, c.status].filter(Boolean).join("・"))}">
+        : `<div class="ev evc ${DONE.has(c.status)?"done":c.status===PP?"pp":isOver(c)?"over":""}" data-id="${c.id}" title="${esc([c.type, c.time, c.no && "編號 " + c.no, secOf(c)?.name, c.lot, c.applicant, c.status, lkN(c) && `連件共 ${lkN(c) + 1} 件`].filter(Boolean).join("・"))}">
           <span class="r1"><span>${esc(c.type || "案件")}</span>${c.time ? `<span class="tm">${esc(c.time)}</span>` : ""}</span>
-          ${c.no ? `<span class="r">編號 <span class="num">${esc(c.no)}</span></span>` : ""}
-          ${secOf(c) || c.lot ? `<span class="r">${esc(secOf(c)?.name || c.sec || "")} <span class="num">${esc(c.lot || "")}</span></span>` : ""}
+          ${c.no ? `<span class="r">編號 <span class="num">${esc(c.no)}${lkText(c)}</span></span>` : ""}
+          ${secOf(c) || c.lot ? `<span class="r">${esc(secOf(c)?.name || c.sec || "")} <span class="num">${esc(c.lot || "")}</span>${!c.no && lkN(c) ? lkText(c) : ""}</span>` : ""}
           ${c.applicant ? `<span class="r">${esc(c.applicant)}</span>` : ""}</div>`).join("") + `</div>`;
   }
   $("#cal").innerHTML = html;
@@ -1242,6 +1280,7 @@ function setKind(k){
   $("#kindSeg").querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", b.dataset.kind === k));
   document.querySelectorAll("#caseForm [data-for]").forEach(el => el.hidden = el.dataset.for !== k);
   $("#stampRow").hidden = k !== "case" || !STAMPED.has(S.status);
+  if (S.subs) $("#linkBox").hidden = !S.subs.length || k !== "case";
   drawReadout();
 }
 function drawReadout(){
@@ -1272,6 +1311,7 @@ function openDrawer(c, preset = {}){
   $("#cSched").value = v.sched || ""; $("#cTime").value = v.time || ""; $("#cRecv").value = v.recv || ""; $("#cNo").value = v.no || "";
   $("#cSec").value = v.sec || ""; $("#cLot").value = v.lot || ""; $("#cApp").value = v.applicant || "";
   $("#cAgent").value = v.agent || ""; $("#cReason").value = v.reason || ""; $("#cNote").value = v.note || "";
+  S.subs = subsOf(v).map(x => ({...x})); drawLinks();
   S.notice = v.notice || ""; S.inst = [...(v.inst || [])]; S.status = isLeave(v) ? "" : (v.status || ""); S.lv = v.leaveType || "休假";
   $("#cStampAt").value = v.statusAt || ""; $("#stampRow").hidden = !STAMPED.has(S.status); corrInfo();
   drawNotice(); drawInst(); drawStatus(); drawLv(); agentHint(); setKind(v.kind || "case");
@@ -1294,6 +1334,8 @@ function collectForm(){
   const c = {...(base || {}), kind:"case", type:$("#cType").value, sched, time, recv:$("#cRecv").value, no:$("#cNo").value.trim(),
     notice:S.notice, sec:$("#cSec").value.trim(), lot:$("#cLot").value.trim(), applicant:$("#cApp").value.trim(),
     agent:$("#cAgent").value.trim(), inst:[...S.inst], status:S.status, note};
+  const subs = S.subs.map(x => ({no:(x.no || "").trim(), type:x.type || "", sec:(x.sec || "").trim(), lot:(x.lot || "").trim()})).filter(x => x.no || x.lot || x.sec);
+  if (subs.length) c.subs = subs; else delete c.subs;
   if (STAMPED.has(c.status) && $("#cStampAt").value) c.statusAt = $("#cStampAt").value; else delete c.statusAt;
   if (c.status === "補正" && c.statusAt) c.corrDue = addDays(c.statusAt.slice(0,10), CORR_DAYS); else delete c.corrDue;
   if (!c.type && !c.applicant && !c.lot) { toast("至少填種類、申請人或地號其中一項"); return null; }
@@ -1402,7 +1444,8 @@ function buildWorkbook(){
     const list = all().filter(c => monthOf(c) === k), taken = new Set(list.map(c => c.sched));
     daysOf(k).forEach(d => { if (!taken.has(d)) list.push({slot:true, sched:d}); });
     list.sort((a,b) => sk(a).localeCompare(sk(b)));
-    const rows = list.map(caseRow).map(r => r.map((v,i) => (i === 1 || i === 2) && v ? parseISO(v) : v));
+    const rows = list.flatMap(c => [caseRow(c), ...(isLeave(c) || c.slot ? [] : subsOf(c).map(x => caseRow({...c, type:x.type || c.type, no:x.no, sec:x.sec, lot:x.lot, postponedTo:"", postponedFrom:"", note:`連件（主件 ${c.no || c.lot || ""}）`})))])
+      .map(r => r.map((v,i) => (i === 1 || i === 2) && v ? parseISO(v) : v));
     const ws = XLSX.utils.aoa_to_sheet([HEAD, ...rows], {cellDates:true, dateNF:"m/d"});
     ws["!cols"] = [10,10,10,8,8,10,6,7,16,10,12,10,12,10,26].map(w => ({wch:w}));
     XLSX.utils.book_append_sheet(wb, ws, (multi ? k.slice(0,4) + "-" : "") + mLabel(k));
@@ -1698,7 +1741,56 @@ $("#linkRow").onclick = e => { const g = e.target.closest("[data-goto]"); if (g)
 $("#dPostpone").onclick = () => { $("#ppPanel").hidden = false; $("#ppDate").value = ""; $("#ppTime").value = $("#cTime").value; $("#ppPanel").scrollIntoView({block:"nearest"}); $("#ppDate").focus(); };
 $("#ppCancel").onclick = () => { $("#ppPanel").hidden = true; };
 $("#ppGo").onclick = postpone;
+$("#addLink").onclick = () => { if (S.subs.length) { $("#linkBox").scrollIntoView({block:"nearest"}); return; } addLink(); };
+$("#addLink2").onclick = addLink;
+$("#linkList").addEventListener("input", e => {
+  const row = e.target.closest(".lkrow"), k = e.target.dataset.k; if (!row || !k) return;
+  S.subs[Number(row.dataset.i)][k] = e.target.value;
+  if (k === "sec") { const sc = SECMAP.get(e.target.value.trim()), el = row.querySelector(".lksec"); el.className = "lksec" + (e.target.value.trim() && !sc ? " bad" : ""); el.textContent = e.target.value.trim() ? (sc ? `${sc.town}・${sc.name}` : "查無此段代碼") : "　"; }
+});
+$("#linkList").addEventListener("change", e => { const row = e.target.closest(".lkrow"); if (row && e.target.dataset.k === "type") S.subs[Number(row.dataset.i)].type = e.target.value; });
+$("#linkList").addEventListener("click", e => {
+  const b = e.target.closest("[data-act]"), row = e.target.closest(".lkrow"); if (!b || !row) return;
+  const i = Number(row.dataset.i);
+  if (b.dataset.act === "del") { S.subs.splice(i, 1); drawLinks(); }
+  else if (b.dataset.act === "split") splitSub(i);
+});
 const nowLocal = () => { const d = new Date(); return `${iso(d)}T${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+function drawLinks(){
+  const box = $("#linkBox"); box.hidden = !S.subs.length || S.kind !== "case";
+  $("#addLink").textContent = S.subs.length ? `連件 ${S.subs.length + 1}` : "＋ 連件";
+  $("#linkList").innerHTML = S.subs.map((x, i) => { const sc = SECMAP.get(String(x.sec || ""));
+    return `<div class="lkrow" data-i="${i}">
+      <span class="lkn">${i + 2}</span>
+      <input class="in num" data-k="no" value="${esc(x.no)}" placeholder="案件編號" aria-label="第 ${i + 2} 件案件編號">
+      <select class="in" data-k="type" aria-label="第 ${i + 2} 件種類">${S.types.map(t => `<option${t === x.type ? " selected" : ""}>${esc(t)}</option>`).join("")}${x.type && !S.types.includes(x.type) ? `<option selected>${esc(x.type)}</option>` : ""}</select>
+      <input class="in num" data-k="sec" value="${esc(x.sec)}" list="dlSections" inputmode="numeric" placeholder="段代碼" aria-label="第 ${i + 2} 件段代碼">
+      <input class="in num" data-k="lot" value="${esc(x.lot)}" placeholder="地號" aria-label="第 ${i + 2} 件地號">
+      <button class="btn sm" type="button" data-act="split" title="拆成獨立案件">拆件</button>
+      <button class="rowbtn" type="button" data-act="del" aria-label="移除第 ${i + 2} 件">✕</button>
+      <span class="lksec${x.sec && !sc ? " bad" : ""}">${x.sec ? (sc ? `${esc(sc.town)}・${esc(sc.name)}` : "查無此段代碼") : "　"}</span></div>`; }).join("");
+}
+function addLink(){
+  S.subs.push({no:"", type:$("#cType").value || S.types[0] || "", sec:$("#cSec").value.trim(), lot:""});
+  drawLinks();
+  const rows = $("#linkList").querySelectorAll(".lkrow"); rows[rows.length - 1]?.querySelector('[data-k="no"]').focus();
+}
+async function splitSub(i){
+  if (!S.canWrite) { toast("你只有檢視權限"); return; }
+  const sub = S.subs[i]; if (!sub) return;
+  S.subs.splice(i, 1);
+  const cur = collectForm();
+  if (!cur) { S.subs.splice(i, 0, sub); return; }
+  const child = {...cur};
+  ["id","subs","postponedTo","postponedToDate","postponedToTime","postponedFrom","postponedFromDate","postponedFromTime"].forEach(k => delete child[k]);
+  Object.assign(child, {type:sub.type || cur.type, no:(sub.no || "").trim(), sec:(sub.sec || "").trim(), lot:(sub.lot || "").trim(), splitFrom:cur.no || cur.lot || ""});
+  closeDrawer();
+  try {
+    await saveCase(cur); await saveCase(child);
+    toast(`已拆件：${child.no || child.lot || "這一件"} 成為獨立案件`);
+    openDrawer(S.cases.get(cur.id));
+  } catch(e){ writeFailed(e); }
+}
 function corrInfo(){
   const isCorr = S.status === "補正", at = $("#cStampAt").value, el = $("#corrInfo");
   $("#stampLbl").textContent = isCorr ? "補正日期時間（會寫入備註，可修改）" : "辦理時間（會寫入備註，可修改）";
