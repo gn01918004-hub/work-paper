@@ -507,6 +507,7 @@ a.btn{text-decoration:none}
         <div class="card">
           <div class="mhead" id="mhead"></div>
           <details class="unsched" id="unsched" hidden><summary>未排日期的案件 <span id="unschedN"></span> 件</summary>
+            <div class="toolbar" id="unschedTools" style="padding:0 16px 10px"></div>
             <div class="tw"><table><tbody id="unschedRows"></tbody></table></div></details>
           <div class="tw sched" id="schedScroll"><table>
             <thead><tr><th>排定日期／時間</th><th>種類</th><th>地段</th><th>地號</th><th>申請人</th><th>代理人</th><th>案件編號</th><th>收件</th><th>通知狀態</th><th>儀器</th><th>辦理情形</th><th>備註</th></tr></thead>
@@ -678,12 +679,16 @@ a.btn{text-decoration:none}
 <script>
 (() => {
 const BUILD = "artifact";
-const VERSION = "3.7.0";
+const VERSION = "3.7.1";
 /* 離線版檢查更新：讀取 GitHub 公開倉庫的版本檔，新版本以 zip 提供下載 */
 const UPDATE_URL = "https://raw.githubusercontent.com/gn01918004-hub/work-paper/main/release/version.json";
 const DOWNLOAD_URL = "https://github.com/gn01918004-hub/work-paper/raw/main/release/survey-schedule.zip";
 /* 更新紀錄（與 CHANGELOG.md 同步）：第一筆為目前版本 */
 const CHANGELOG = [
+  {v:"3.7.1", date:"2026-10-27", title:"一次刪除未排日期的案件", items:[
+    "排程表上方「未排日期的案件」展開後，新增「刪除全部未排日期的案件」按鈕",
+    "刪除前會再確認一次，可選擇先下載備份再刪除",
+    "用來清掉匯入格式有誤產生的資料；有排定日期的案件不受影響"]},
   {v:"3.7.0", date:"2026-10-27", title:"連件與拆件、分頁縮圖", items:[
     "案件畫面的案件編號旁新增「連件」，可加入多件，每件填案件編號、種類、段代碼、地號",
     "連件共用第一件的申請人、代理人、收件時間、排定日期時間、通知狀態、儀器、辦理情形、備註",
@@ -1159,6 +1164,7 @@ function renderList(){
   $("#rows").innerHTML = html;
   const us = $("#unsched"); us.hidden = !unsched.length; $("#unschedN").textContent = unsched.length;
   $("#unschedRows").innerHTML = unsched.map(rowHTML).join("");
+  if (!S.unschedAsk) $("#unschedTools").innerHTML = S.canWrite && !F ? `<button class="btn sm danger" type="button" data-us="ask">刪除全部未排日期的案件</button><span style="font-size:12px;color:var(--ink-3)">匯入格式有誤造成的資料可在這裡一次清掉</span>` : "";
   if (F && unsched.length) us.open = true;
 
   const em = $("#listEmpty");
@@ -1194,6 +1200,26 @@ function loadMore(dir){
   renderList();
   if (dir < 0) sc.scrollTop = t0 + (sc.scrollHeight - h0);
   unlockSoon(true);
+}
+/* 一次刪除所有未排日期的案件（例如匯入格式錯誤產生的資料） */
+function unschedAsk(on){
+  S.unschedAsk = on;
+  const n = real().filter(c => !c.sched).length;
+  $("#unschedTools").innerHTML = on
+    ? `<span class="confirm">確定刪除這 ${n} 件未排日期的案件？刪除後無法復原。</span><button class="btn sm" type="button" data-us="backup">先下載備份再刪除</button><button class="btn sm danger" type="button" data-us="go">直接刪除</button><button class="btn sm" type="button" data-us="cancel">取消</button>`
+    : "";
+  if (!on) renderList();
+}
+async function unschedDelete(withBackup){
+  if (!S.canWrite) { toast("你只有檢視權限"); return; }
+  const list = real().filter(c => !c.sched);
+  if (withBackup) await exportBackup();
+  S.unschedAsk = false;
+  try {
+    for (const c of list) await deleteCase(c.id);
+    toast(`已刪除 ${list.length} 件未排日期的案件`);
+  } catch(e){ writeFailed(e); }
+  renderList();
 }
 function backToToday(){ lockNow(); clearFilters(); setRange(TODAY); S.centerOn = TODAY; renderList(); }
 function gotoDate(d){
@@ -1715,6 +1741,11 @@ function rowsClick(e){
 }
 $("#rows").onclick = rowsClick;
 $("#unschedRows").onclick = rowsClick;
+$("#unschedTools").addEventListener("click", e => {
+  const a = e.target.closest("[data-us]")?.dataset.us; if (!a) return;
+  if (a === "ask") unschedAsk(true); else if (a === "cancel") unschedAsk(false);
+  else if (a === "go") unschedDelete(false); else if (a === "backup") unschedDelete(true);
+});
 ["#rows", "#unschedRows"].forEach(id => $(id).addEventListener("change", e => { if (e.target.classList.contains("cellsel")) quickSet(e.target); }));
 $("#cal").onclick = e => {
   const ev = e.target.closest(".ev[data-id]"); if (ev) { openDrawer(S.cases.get(ev.dataset.id)); return; }
