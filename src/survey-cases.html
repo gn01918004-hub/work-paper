@@ -731,12 +731,16 @@ tr.msdup td{color:var(--ink-3)}
 (() => {
 const BUILD = "artifact";
 const TEST_BUILD = false; /* 打包測試版時改為 true：使用獨立的資料，不影響正式版 */
-const VERSION = "3.8.0";
+const VERSION = "3.8.1";
 /* 離線版檢查更新：讀取 GitHub 公開倉庫的版本檔，新版本以 zip 提供下載 */
 const UPDATE_URL = "https://raw.githubusercontent.com/gn01918004-hub/work-paper/main/release/version.json";
 const DOWNLOAD_URL = "https://github.com/gn01918004-hub/work-paper/raw/main/release/survey-schedule.zip";
 /* 更新紀錄（與 CHANGELOG.md 同步）：第一筆為目前版本 */
 const CHANGELOG = [
+  {v:"3.8.1", date:"2026-10-28", title:"支援 Map-Scheduler 的收件日期與收件字欄位", items:[
+    "Map-Scheduler v2.9.0 起收件日期、收件字有獨立欄位，匯入時直接使用，案件編號取自案號",
+    "舊格式案號（1150914-81-2400）仍可照常拆解",
+    "搜尋可找收件字（例 81通圖土）與原始完整案號"]},
   {v:"3.8.0", date:"2026-10-28", title:"Map-Scheduler 案件同步", items:[
     "左下角新增「案件同步」：設定 Map-Scheduler 網址並選擇測量員，就會抓該員的案件",
     "開啟時自動檢查，有新案件會跳出「你有新案件」確認視窗，勾選後再匯入；也可設定直接匯入",
@@ -1151,7 +1155,7 @@ function matches(c, q){
   if (S.fStatus === "__overdue" && !isOver(c)) return false;
   if (S.fStatus === "__nonotice" && !needsNotice(c)) return false;
   if (S.fStatus && !S.fStatus.startsWith("__") && c.status !== S.fStatus) return false;
-  if (q) { const s = secOf(c); if (![c.type,c.no,c.sec,s&&s.name,s&&s.town,c.lot,c.applicant,c.agent,c.note,c.reason,c.status,c.leaveType,c.time,(c.inst||[]).join(" "),c.extNo,c.surveyor,...subHay(c)].join(" ").toLowerCase().includes(q)) return false; }
+  if (q) { const s = secOf(c); if (![c.type,c.no,c.sec,s&&s.name,s&&s.town,c.lot,c.applicant,c.agent,c.note,c.reason,c.status,c.leaveType,c.time,(c.inst||[]).join(" "),c.extNo,c.extWord,c.surveyor,...subHay(c)].join(" ").toLowerCase().includes(q)) return false; }
   return true;
 }
 /* 連件：子件只記自己的案件編號、種類、段代碼、地號，其餘欄位與主件（第一件）共用 */
@@ -1800,13 +1804,23 @@ function msParseParcel(s){
   return {sec:code, lot:m[2].replace(/[、，,]/g, ".").replace(/\.$/, ""), ok:!!code, ambiguous, rest:m[3]};
 }
 const msTime = s => { const t = String(s || ""), m = t.match(/(\d{1,2})[:：.](\d{2})/) || t.match(/^(\d{1,2})$/); return m ? `${pad(m[1])}:${m[2] || "00"}` : ""; };
+/* Map-Scheduler v2.9.0 起收件日期、收件字有自己的欄位，案號只剩號碼；舊版仍是 1150914-81-2400 */
+function msNo(x){
+  if (x.receiveDate || x.receiveWord) {
+    const recv = /^\d{4}-\d{2}-\d{2}$/.test(x.receiveDate || "") ? x.receiveDate : "";
+    const roc = recv ? `${Number(recv.slice(0,4)) - 1911}${recv.slice(5,7)}${recv.slice(8,10)}` : "";
+    const word = (x.receiveWord || "").match(/^\d+/)?.[0] || x.receiveWord || "";
+    return {no:String(x.caseNumber || "").trim(), recv, ok:true, full:[roc, word, x.caseNumber].filter(Boolean).join("-"), word:x.receiveWord || ""};
+  }
+  return {...msParseNo(x.caseNumber), full:x.caseNumber || "", word:""};
+}
 function msToCase(x){
-  const n = msParseNo(x.caseNumber), p = msParseParcel(x.landParcel), tm = msTime(x.scheduledTime);
+  const n = msNo(x), p = msParseParcel(x.landParcel), tm = msTime(x.scheduledTime);
   const notes = [x.notes || "", !p.ok && x.landParcel ? `地段地號：${x.landParcel}` : "", !tm && x.scheduledTime ? `排件時間：${x.scheduledTime}` : ""].filter(Boolean).join("／");
   const sched = /^\d{4}-\d{2}-\d{2}$/.test(x.surveyDate || "") ? x.surveyDate : "";
   return {c:{kind:"case", type:x.caseType || "", sched, time:tm, extSched:sched, extTime:tm, recv:n.recv, no:n.no,
       sec:p.sec, lot:p.lot, applicant:x.owner || "", agent:"", notice:"", inst:[], status:"", note:notes,
-      extId:x.id, extSrc:MS_SRC, extNo:x.caseNumber || "", surveyor:x.surveyor || ""},
+      extId:x.id, extSrc:MS_SRC, extNo:n.full, extWord:n.word, surveyor:x.surveyor || ""},
     warn:[!n.ok && x.caseNumber ? "案號格式不同，原樣放入案件編號" : "", !p.ok && x.landParcel ? "找不到地段，原文放在備註" : "",
       p.ambiguous ? `「${x.landParcel}」有同名地段，已選${SECMAP.get(p.sec)?.town || ""}，請確認` : "", !tm && x.scheduledTime ? "時間格式不同，原文放在備註" : ""].filter(Boolean)};
 }
@@ -1885,7 +1899,7 @@ async function msImport(sel, link){
     const newTypes = [...new Set(sel.map(f => f.c.type).filter(t => t && !S.types.includes(t)))];   // 種類對不上的，加進常用資料
     if (newTypes.length) { S.types = [...S.types, ...newTypes]; await saveLists(); }
     for (const f of sel) await saveCase({...f.c});
-    for (const f of link) await saveCase({...f.dup, extId:f.x.id, extSrc:MS_SRC, extNo:f.x.caseNumber || "", extSched:f.c.sched, extTime:f.c.time});   // 已有同案號：只做對應，不改內容
+    for (const f of link) await saveCase({...f.dup, extId:f.x.id, extSrc:MS_SRC, extNo:f.c.extNo, extWord:f.c.extWord, extSched:f.c.sched, extTime:f.c.time});   // 已有同案號：只做對應，不改內容
     toast(`已匯入 ${sel.length} 件新案件${link.length ? `，${link.length} 件對應到現有案件` : ""}${newTypes.length ? `；種類新增：${newTypes.join("、")}` : ""}`);
   } catch(e){ writeFailed(e); }
 }
