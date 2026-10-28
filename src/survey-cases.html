@@ -426,6 +426,14 @@ tr.msdup td{color:var(--ink-3)}
   body.fill #view-cal .cal{grid-auto-rows:minmax(64px,1fr)}
   body.fill #view-cal>p{display:none}
 }
+/* 檢測 */
+.lkb.insp{background:var(--lv-trip)}
+tbody tr.insp td{background:color-mix(in srgb,var(--lv-trip) 8%,var(--surface));cursor:pointer}
+tbody tr.insp td:first-child{border-left-color:var(--lv-trip)}
+tbody tr.insp:hover td{background:color-mix(in srgb,var(--lv-trip) 16%,var(--surface))}
+.ev.insp{border-color:var(--lv-trip);background:color-mix(in srgb,var(--lv-trip) 14%,var(--surface));cursor:pointer}
+.ev.insp .r1 span:first-child{color:var(--lv-trip)}
+.cell .t.insp{border-color:var(--lv-trip)}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(22px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:9px 18px;border-radius:999px;z-index:40;font-size:13px;box-shadow:var(--shadow)}
 
 /* ---------- narrow ---------- */
@@ -654,6 +662,7 @@ tr.msdup td{color:var(--ink-3)}
     <div class="f full" data-for="case"><span class="lb">通知狀態</span><div class="seg" id="noticeSeg"></div></div>
     <div class="f full" data-for="case"><span class="lb">儀器（可複選）</span><div class="seg" id="instSeg"></div></div>
     <div class="f full" data-for="case"><span class="lb">辦理情形</span><div class="stgrid" id="statusGrid"></div></div>
+    <div class="f" data-for="case" id="inspRow" hidden><label for="cInspAt">檢測日期時間</label><input class="in num" type="datetime-local" id="cInspAt"><span class="hint">會排在那天的行事曆與排程表上</span></div>
     <div class="f" data-for="case" id="stampRow" hidden><label for="cStampAt" id="stampLbl">辦理時間（會寫入備註，可修改）</label><input class="in num" type="datetime-local" id="cStampAt"><span class="hint" id="corrInfo" hidden></span></div>
     <div class="f full" data-for="leave"><label for="cReason">說明</label><input class="in" id="cReason" placeholder="例 特休、選舉講習、縣府上課"></div>
     <div class="f full"><label for="cNote">備註</label><textarea class="in" id="cNote" rows="3"></textarea></div>
@@ -752,12 +761,18 @@ tr.msdup td{color:var(--ink-3)}
 (() => {
 const BUILD = "artifact";
 const TEST_BUILD = false; /* 打包測試版時改為 true：使用獨立的資料，不影響正式版 */
-const VERSION = "3.8.2";
+const VERSION = "3.9.0";
 /* 離線版檢查更新：讀取 GitHub 公開倉庫的版本檔，新版本以 zip 提供下載 */
 const UPDATE_URL = "https://raw.githubusercontent.com/gn01918004-hub/work-paper/main/release/version.json";
 const DOWNLOAD_URL = "https://github.com/gn01918004-hub/work-paper/raw/main/release/survey-schedule.zip";
 /* 更新紀錄（與 CHANGELOG.md 同步）：第一筆為目前版本 */
 const CHANGELOG = [
+  {v:"3.9.0", date:"2026-10-28", title:"辦理情形新增「檢測」", items:[
+    "辦理情形新增「檢測」，選擇後填檢測日期時間",
+    "檢測那天的行事曆、排程表、頂部工作日列會另外顯示一筆紫色的「檢測」，點一下就跳到原案件",
+    "檢測中的案件以檢測日期判斷是否逾期，並排進總覽的「接下來要測的案件」",
+    "匯出 Excel 時備註會附上檢測日期",
+    "Map-Scheduler 案件同步會一併帶入代理人（需要 Map-Scheduler v2.10.0）"]},
   {v:"3.8.2", date:"2026-10-28", title:"排程表與行事曆填滿視窗", items:[
     "寬螢幕時，排程表與行事曆會撐滿整個視窗的寬度與高度，不再留白",
     "排程表只在表格內捲動，頁面本身不用捲；行事曆每週的格子依視窗高度平均分配",
@@ -851,7 +866,7 @@ const SEED = null; /* 離線版打包時填入 data/seed.json（代理人通訊�
 
 /* ---------- 預設參考資料（來自「常用ID」工作表） ---------- */
 const DEFAULT_TYPES = ["鑑界","圖面分割","協助分割","現場分割","合併","新建","回復","滅失","基地號勘查","法院","界址調整","更正編定","再鑑定","自用住宅","地上權勘查","段界調整","預為分割","位置測量","門牌勘查","鑑界(協辦)"];
-const STATUSES = ["完成","補正","撤回","駁回","成圖","擴大檢測","詳備註"];
+const STATUSES = ["完成","補正","撤回","駁回","成圖","擴大檢測","檢測","詳備註"];
 const PP = "延期";
 const STAMPED = new Set(["完成","補正","駁回","撤回"]); /* 選這些辦理情形時，自動把當下日期時間寫入備註 */
 const STAMP_RE = /^【(完成|補正|駁回|撤回) [^】]*】\n?/;
@@ -904,9 +919,15 @@ const corrDue = c => { const d = corrDate(c); return d ? addDays(d, CORR_DAYS) :
 const corrLeft = c => { const d = corrDue(c); return d ? dayDiff(d, TODAY) : null; };      // 距到期日還有幾天（負數＝已過）
 const corrLevel = c => { const L = corrLeft(c); return L === null ? "nodate" : L < -CORR_GRACE ? "over" : L < 0 ? "grace" : L < 3 ? "soon" : "ok"; };
 const corrText = c => { const L = corrLeft(c); return L === null ? "未設補正日" : L > 0 ? `剩 ${L} 天` : L === 0 ? "今天到期" : L >= -CORR_GRACE ? `已到期 ${-L} 天（寬限中）` : `逾期 ${-L - CORR_GRACE} 天`; };
+/* 檢測：辦理情形選「檢測」時排定檢測日期時間，會在那天的行事曆、排程表另外顯示一筆，點了導到原案件 */
+const INSP = "檢測";
+const inspDate = c => c.status === INSP && c.inspectAt ? c.inspectAt.slice(0,10) : "";
+const inspTime = c => c.status === INSP && c.inspectAt ? c.inspectAt.slice(11,16) : "";
+const inspItems = () => all().filter(c => inspDate(c)).map(c => ({insp:true, ref:c, sched:inspDate(c), time:inspTime(c)}));
 const isOver = c => {
   if (isClosed(c)) return false;
   if (c.status === "補正") return corrLevel(c) === "over";   // 補正案件依補正期限判斷，不看排定日期
+  if (inspDate(c)) return inspDate(c) < TODAY;              // 檢測中依檢測日期判斷
   return !!c.sched && c.sched < TODAY;
 };
 const secOf = c => SECMAP.get(String(c.sec || ""));
@@ -1096,7 +1117,7 @@ function renderSelects(){
 }
 function byDay(){
   const m = new Map();
-  all().forEach(c => { if (c.sched) { if (!m.has(c.sched)) m.set(c.sched, []); m.get(c.sched).push(c); } });
+  [...all(), ...inspItems()].forEach(c => { if (c.sched) { if (!m.has(c.sched)) m.set(c.sched, []); m.get(c.sched).push(c); } });
   m.forEach(l => l.sort((a,b) => sk(a).localeCompare(sk(b))));
   return m;
 }
@@ -1106,7 +1127,7 @@ function renderBand(){
   $("#todayBig").innerHTML = `${pad(d.getMonth()+1)}<em>.</em>${pad(d.getDate())} <span style="font-size:.5em;font-weight:600;color:var(--band-ink-2)">週${DOW[d.getDay()]}</span>`;
   const bd = byDay(), todays = (bd.get(TODAY) || []).filter(c => !isLeave(c));
   const next = real().filter(c => !isClosed(c) && c.sched > TODAY).sort((a,b) => a.sched.localeCompare(b.sched))[0];
-  $("#todaySub").textContent = !S.loaded ? "載入中…" : todays.length ? `今天有 ${todays.length} 件：${todays.map(c => c.type).join("、")}` : next ? `今天沒有排案件・下一件 ${md(next.sched)} ${next.type}` : "今天沒有排案件";
+  $("#todaySub").textContent = !S.loaded ? "載入中…" : todays.length ? `今天有 ${todays.length} 件：${todays.map(c => c.insp ? `檢測（${c.ref.type || "案件"}）` : c.type).join("、")}` : next ? `今天沒有排案件・下一件 ${md(next.sched)} ${next.type}` : "今天沒有排案件";
   const days = []; let k = TODAY, guard = 0;
   while (days.length < 10 && guard++ < 60) { if (isWorkday(k) || bd.has(k)) days.push(k); k = addDays(k, 1); }
   $("#strip").innerHTML = days.map(day => {
@@ -1114,7 +1135,8 @@ function renderBand(){
     return `<button type="button" class="cell${day===TODAY?" now":""}${leave?" off " + LEAVES[leave.leaveType]:""}" data-day="${day}">
       <span class="d"><b>${md(day)}</b><span>週${dow(day)}</span></span>
       ${leave ? `<span class="t leave">${esc(leave.leaveType)}${leave.reason && leave.reason !== leave.leaveType ? " " + esc(leave.reason) : ""}</span>` : ""}
-      ${cs.slice(0,2).map(c => `<span class="t ${DONE.has(c.status)?"done":isOver(c)?"over":""}">${c.time ? esc(c.time) + " " : ""}${esc(c.type || "案件")} ${esc(c.lot || "")}${lkText(c)}</span>`).join("")}
+      ${cs.slice(0,2).map(c => c.insp ? `<span class="t insp">${c.time ? esc(c.time) + " " : ""}檢測 ${esc(c.ref.lot || c.ref.type || "")}</span>`
+        : `<span class="t ${DONE.has(c.status)?"done":isOver(c)?"over":""}">${c.time ? esc(c.time) + " " : ""}${esc(c.type || "案件")} ${esc(c.lot || "")}${lkText(c)}</span>`).join("")}
       ${cs.length > 2 ? `<span class="free">另 ${cs.length-2} 件</span>` : !list.length ? `<span class="free">空檔</span>` : ""}
     </button>`;
   }).join("");
@@ -1138,10 +1160,11 @@ function renderDash(){
     <button type="button" class="kpi${corrExp.length ? " crit" : corrHot.length ? " warnk" : ""}" data-go="補正">${ring(corr.length ? corrHot.length/corr.length : 0, corrExp.length ? "var(--crit)" : "var(--warn)")}<span class="tx"><span class="k">補正中</span><span class="v">${corr.length}</span><span class="s">${corrExp.length ? `${corrExp.length} 件已到期` : corrHot.length ? `${corrHot.length} 件剩不到 3 天` : corr.length ? "期限內" : "沒有補正案件"}</span></span></button>
     <button type="button" class="kpi${over.length?" crit":""}" data-go="__overdue">${ring(open.length ? over.length/open.length : 0, "var(--crit)")}<span class="tx"><span class="k">逾期未結</span><span class="v">${over.length}</span><span class="s">未結案共 ${open.length} 件</span></span></button>
     <button type="button" class="kpi" data-go="__nonotice">${ring(open.length ? noNotice.length/open.length : 0, "var(--warn)")}<span class="tx"><span class="k">通知未寄</span><span class="v">${noNotice.length}</span><span class="s">未結案中尚未寄出</span></span></button>`;
-  const up = [...over.filter(c => c.status !== "補正"), ...open.filter(c => !isOver(c) && c.sched && c.status !== "補正")].sort((a,b) => (isOver(b)-isOver(a)) || sk(a).localeCompare(sk(b))).slice(0, 8);
+  const ud = c => inspDate(c) ? {sched:inspDate(c), time:inspTime(c)} : c;   // 檢測中的案件以檢測日期排在「接下來要測」
+  const up = [...over.filter(c => c.status !== "補正"), ...open.filter(c => !isOver(c) && (c.sched || inspDate(c)) && c.status !== "補正")].sort((a,b) => (isOver(b)-isOver(a)) || sk(ud(a)).localeCompare(sk(ud(b)))).slice(0, 8);
   $("#upMeta").textContent = open.length ? `未結案 ${open.length} 件` : "";
   $("#upList").innerHTML = up.length ? up.map(c => { const s = secOf(c); return `<button type="button" class="up" data-id="${c.id}">
-      <span class="dblock${c.sched===TODAY?" now":isOver(c)?" over":""}"><b>${md(c.sched)}</b><span>週${dow(c.sched)}${c.time ? " " + esc(c.time) : ""}</span></span>
+      <span class="dblock${ud(c).sched===TODAY?" now":isOver(c)?" over":""}"><b>${md(ud(c).sched)}</b><span>${inspDate(c) ? "檢測" : "週" + dow(ud(c).sched)}${ud(c).time ? " " + esc(ud(c).time) : ""}</span></span>
       <span class="main"><b>${esc(c.type || "案件")}</b>　${esc(s ? s.name : c.sec || "")} <span class="num">${esc(c.lot || "")}</span>${lkChip(c)}<span class="l2">${esc(c.applicant || "—")}${c.agent ? `・代理 ${esc(c.agent)}` : ""}${s ? `・${esc(s.town)}` : ""}</span></span>
       <span class="st ${stClass(c)}">${esc(stText(c))}</span></button>`; }).join("")
     : `<div class="empty">${S.loaded ? "目前沒有未結案件。按「新增案件」排入下一件。" : "載入中…"}</div>`;
@@ -1215,6 +1238,12 @@ async function quickSet(sel){
   catch(e){ writeFailed(e); }
 }
 function rowHTML(c){
+  if (c.insp) { const r = c.ref, s = secOf(r);
+    return `<tr class="insp${c.sched === TODAY ? " istoday" : ""}" data-goto="${r.id}" data-d="${c.sched}" title="點一下前往原案件"><td class="dt">${md(c.sched)}<span>週${dow(c.sched)}</span>${c.time ? `<small class="tm">${esc(c.time)}</small>` : ""}</td>
+      <td><b>${esc(r.type)}</b><span class="lkb insp">檢測</span></td>
+      <td>${s ? `${esc(s.name)}<span class="sub">${esc(s.town)}・<span class="num">${esc(r.sec)}</span></span>` : esc(r.sec || "")}</td>
+      <td class="num">${esc(r.lot)}${lkChip(r)}</td><td>${esc(r.applicant)}</td><td>${esc(r.agent)}</td><td class="num">${esc(r.no)}</td>
+      <td colspan="5"><span class="plink">→ 前往原案件${r.sched ? `（原排定 ${md(r.sched)}${r.time ? " " + esc(r.time) : ""}）` : ""}</span></td></tr>`; }
   const dcell = `<td class="dt">${c.sched ? `${md(c.sched)}<span>週${dow(c.sched)}</span>${c.time ? `<small class="tm">${esc(c.time)}</small>` : ""}` : `<span>未排</span>`}</td>`;
   if (c.slot) return `<tr class="slot${c.sched === TODAY ? " istoday" : ""}" data-slot="${c.sched}" data-d="${c.sched}">${dcell}<td colspan="11"><span class="plus">＋ 空檔</span>　點此排入案件${c.sched === TODAY ? "　（今天）" : ""}</td></tr>`;
   if (c.marker) return `<tr class="marker" data-slot="${c.sched}" data-d="${c.sched}">${dcell}<td colspan="11">今天　非工作日，點此可排入案件</td></tr>`;
@@ -1227,7 +1256,7 @@ function rowHTML(c){
     <td class="num">${esc(c.no)}${lkChip(c)}</td><td class="num">${md(c.recv)}</td>
     <td>${noticeSel(c)}</td>
     <td>${instSel(c)}</td>
-    <td><span class="st ${sc}">${esc(stText(c))}</span>${c.status === "補正" ? `<small class="due ${corrLevel(c)}">${corrDue(c) ? `${md(corrDue(c))} 到期・` : ""}${esc(corrText(c))}</small>` : ""}</td>
+    <td><span class="st ${sc}">${esc(stText(c))}</span>${inspDate(c) ? `<small class="due ${isOver(c) ? "over" : ""}">${md(inspDate(c))}${inspTime(c) ? " " + esc(inspTime(c)) : ""} 檢測</small>` : ""}${c.status === "補正" ? `<small class="due ${corrLevel(c)}">${corrDue(c) ? `${md(corrDue(c))} 到期・` : ""}${esc(corrText(c))}</small>` : ""}</td>
     <td class="note">${ppLinks(c)}${esc(c.note)}</td></tr>`;
 }
 function renderList(){
@@ -1237,6 +1266,7 @@ function renderList(){
   const rows = all().filter(c => c.sched && (F || inRange(c)) && matches(c, q));
   const unsched = real().filter(c => !c.sched && matches(c, q));
   if (!F) {
+    inspItems().filter(x => inRange(x) && matches(x.ref, q)).forEach(x => rows.push(x));
     const taken = new Set(rows.map(c => c.sched));
     if (S.fSlots) for (let d = S.from; d <= S.to; d = addDays(d, 1)) if (!taken.has(d) && isWorkday(d)) { rows.push({slot:true, sched:d}); taken.add(d); }
     if (!taken.has(TODAY) && inRange({sched:TODAY})) rows.push({marker:true, sched:TODAY});
@@ -1341,7 +1371,12 @@ function renderCal(){
     const k = iso(d), list = bd.get(k) || [], wd = d.getDay() > 0 && d.getDay() < 6;
     const off = wd && !isWorkday(k) && !list.length;
     html += `<div class="day${d.getMonth()!==m-1?" out":""}${k===TODAY?" now":""}${off?" off":""}" data-date="${k}"><span class="n"><b>${d.getDate()}</b><small>${HOLIDAYS[k] || ""}</small></span>` +
-      list.map(c => isLeave(c) ? `<div class="ev leave ${LEAVES[c.leaveType]}" data-id="${c.id}" title="${esc([c.leaveType, c.time, c.reason].filter(Boolean).join("・"))}">${esc(c.leaveType)}${c.reason && c.reason !== c.leaveType ? ` <span class="x">${esc(c.reason)}</span>` : ""}</div>`
+      list.map(c => c.insp ? `<div class="ev insp" data-goto="${c.ref.id}" title="${esc(["檢測", c.time, c.ref.type, secOf(c.ref)?.name, c.ref.lot, c.ref.applicant, "點一下前往原案件"].filter(Boolean).join("・"))}">
+          <span class="r1"><span>檢測・${esc(c.ref.type || "案件")}</span>${c.time ? `<span class="tm">${esc(c.time)}</span>` : ""}</span>
+          ${c.ref.no ? `<span class="r">編號 <span class="num">${esc(c.ref.no)}</span></span>` : ""}
+          ${secOf(c.ref) || c.ref.lot ? `<span class="r">${esc(secOf(c.ref)?.name || c.ref.sec || "")} <span class="num">${esc(c.ref.lot || "")}</span></span>` : ""}
+          ${c.ref.applicant ? `<span class="r">${esc(c.ref.applicant)}</span>` : ""}</div>`
+        : isLeave(c) ? `<div class="ev leave ${LEAVES[c.leaveType]}" data-id="${c.id}" title="${esc([c.leaveType, c.time, c.reason].filter(Boolean).join("・"))}">${esc(c.leaveType)}${c.reason && c.reason !== c.leaveType ? ` <span class="x">${esc(c.reason)}</span>` : ""}</div>`
         : `<div class="ev evc ${DONE.has(c.status)?"done":c.status===PP?"pp":isOver(c)?"over":""}" data-id="${c.id}" title="${esc([c.type, c.time, c.no && "編號 " + c.no, secOf(c)?.name, c.lot, c.applicant, c.status, lkN(c) && `連件共 ${lkN(c) + 1} 件`].filter(Boolean).join("・"))}">
           <span class="r1"><span>${esc(c.type || "案件")}</span>${c.time ? `<span class="tm">${esc(c.time)}</span>` : ""}</span>
           ${c.no ? `<span class="r">編號 <span class="num">${esc(c.no)}${lkText(c)}</span></span>` : ""}
@@ -1405,6 +1440,7 @@ function setKind(k){
   $("#kindSeg").querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", b.dataset.kind === k));
   document.querySelectorAll("#caseForm [data-for]").forEach(el => el.hidden = el.dataset.for !== k);
   $("#stampRow").hidden = k !== "case" || !STAMPED.has(S.status);
+  $("#inspRow").hidden = k !== "case" || S.status !== INSP;
   if (S.subs) $("#linkBox").hidden = !S.subs.length || k !== "case";
   drawReadout();
 }
@@ -1439,6 +1475,7 @@ function openDrawer(c, preset = {}){
   S.subs = subsOf(v).map(x => ({...x})); drawLinks();
   S.notice = v.notice || ""; S.inst = [...(v.inst || [])]; S.status = isLeave(v) ? "" : (v.status || ""); S.lv = v.leaveType || "休假";
   $("#cStampAt").value = v.statusAt || ""; $("#stampRow").hidden = !STAMPED.has(S.status); corrInfo();
+  $("#cInspAt").value = v.inspectAt || "";
   drawNotice(); drawInst(); drawStatus(); drawLv(); agentHint(); setKind(v.kind || "case");
   const lk = c ? linkHTML(c) : "", lr = $("#linkRow"); lr.innerHTML = lk; lr.hidden = !lk;
   $("#ppPanel").hidden = true;
@@ -1463,6 +1500,10 @@ function collectForm(){
   if (subs.length) c.subs = subs; else delete c.subs;
   if (STAMPED.has(c.status) && $("#cStampAt").value) c.statusAt = $("#cStampAt").value; else delete c.statusAt;
   if (c.status === "補正" && c.statusAt) c.corrDue = addDays(c.statusAt.slice(0,10), CORR_DAYS); else delete c.corrDue;
+  if (c.status === INSP) {
+    if (!$("#cInspAt").value) { toast("請選擇檢測日期時間"); $("#inspRow").hidden = false; $("#cInspAt").focus(); return null; }
+    c.inspectAt = $("#cInspAt").value;
+  } else delete c.inspectAt;
   if (!c.type && !c.applicant && !c.lot) { toast("至少填種類、申請人或地號其中一項"); return null; }
   return tidy(c);
 }
@@ -1553,7 +1594,7 @@ function caseRow(c){
   const s = secOf(c), E = Array(HEAD.length).fill("");
   if (c.slot) { E[2] = c.sched; return E; }
   if (isLeave(c)) { E[2] = c.sched; E[3] = c.time || ""; E[9] = c.reason || ""; E[13] = c.leaveType; E[14] = c.note || ""; return E; }
-  const pp = [c.postponedTo ? `延期至 ${md(c.postponedToDate)}${c.postponedToTime ? " " + c.postponedToTime : ""}` : "", c.postponedFrom ? `由 ${md(c.postponedFromDate)} 延期` : ""];
+  const pp = [inspDate(c) ? `檢測 ${md(inspDate(c))}${inspTime(c) ? " " + inspTime(c) : ""}` : "", c.postponedTo ? `延期至 ${md(c.postponedToDate)}${c.postponedToTime ? " " + c.postponedToTime : ""}` : "", c.postponedFrom ? `由 ${md(c.postponedFromDate)} 延期` : ""];
   return [c.type||"", c.recv||"", c.sched||"", c.time||"", c.no||"", c.notice||"", s?s.town:"", c.sec||"", s?s.name:"", c.lot||"", c.applicant||"", c.agent||"", (c.inst||[]).join("、"), c.status||"", [...pp, c.note||""].filter(Boolean).join("／")];
 }
 function buildWorkbook(){
@@ -1845,7 +1886,7 @@ function msToCase(x){
   const notes = [x.notes || "", !p.ok && x.landParcel ? `地段地號：${x.landParcel}` : "", !tm && x.scheduledTime ? `排件時間：${x.scheduledTime}` : ""].filter(Boolean).join("／");
   const sched = /^\d{4}-\d{2}-\d{2}$/.test(x.surveyDate || "") ? x.surveyDate : "";
   return {c:{kind:"case", type:x.caseType || "", sched, time:tm, extSched:sched, extTime:tm, recv:n.recv, no:n.no,
-      sec:p.sec, lot:p.lot, applicant:x.owner || "", agent:"", notice:"", inst:[], status:"", note:notes,
+      sec:p.sec, lot:p.lot, applicant:x.owner || "", agent:x.agent || "", notice:"", inst:[], status:"", note:notes,
       extId:x.id, extSrc:MS_SRC, extNo:n.full, extWord:n.word, surveyor:x.surveyor || ""},
     warn:[!n.ok && x.caseNumber ? "案號格式不同，原樣放入案件編號" : "", !p.ok && x.landParcel ? "找不到地段，原文放在備註" : "",
       p.ambiguous ? `「${x.landParcel}」有同名地段，已選${SECMAP.get(p.sec)?.town || ""}，請確認` : "", !tm && x.scheduledTime ? "時間格式不同，原文放在備註" : ""].filter(Boolean)};
@@ -2077,6 +2118,7 @@ $("#unschedTools").addEventListener("click", e => {
 });
 ["#rows", "#unschedRows"].forEach(id => $(id).addEventListener("change", e => { if (e.target.classList.contains("cellsel")) quickSet(e.target); }));
 $("#cal").onclick = e => {
+  const g = e.target.closest(".ev[data-goto]"); if (g) { gotoCase(g.dataset.goto); return; }
   const ev = e.target.closest(".ev[data-id]"); if (ev) { openDrawer(S.cases.get(ev.dataset.id)); return; }
   const d = e.target.closest(".day[data-date]"); if (d) openDrawer(null, {sched:d.dataset.date});
 };
@@ -2174,6 +2216,8 @@ $("#statusGrid").onclick = e => {
   S.status = b.dataset.v === S.status ? "" : b.dataset.v; drawStatus();
   const stamped = STAMPED.has(S.status);
   $("#stampRow").hidden = !stamped;
+  $("#inspRow").hidden = S.status !== INSP;
+  if (S.status === INSP && !$("#cInspAt").value) setTimeout(() => $("#cInspAt").focus(), 30);
   if (stamped) $("#cStampAt").value = nowLocal();
   writeStamp();
 };
