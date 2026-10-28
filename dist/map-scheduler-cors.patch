@@ -1,0 +1,63 @@
+From 240e4c51d39af45421e18336bfa81fc94a924af9 Mon Sep 17 00:00:00 2001
+From: gn01918004-hub <gn01918004@gmail.com>
+Date: Wed, 28 Oct 2026 03:54:33 +0000
+Subject: [PATCH] =?UTF-8?q?=E9=96=8B=E6=94=BE=E5=85=B6=E4=BB=96=E7=B6=B2?=
+ =?UTF-8?q?=E9=A0=81=E8=AE=80=E5=8F=96=E6=A1=88=E4=BB=B6=E8=88=87=E6=B8=AC?=
+ =?UTF-8?q?=E9=87=8F=E5=93=A1=E6=B8=85=E5=96=AE=EF=BC=88CORS=EF=BC=8C?=
+ =?UTF-8?q?=E5=8F=AA=E9=99=90=20GET=EF=BC=89=EF=BC=8C=E7=89=88=E6=9C=AC?=
+ =?UTF-8?q?=E6=8E=A8=E9=80=B2=E8=87=B3=20v2.8.2?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01Y5GLayyaFLz6LEy3ZqeSCC
+---
+ client/src/pages/home.tsx | 11 +++++++++--
+ server/index.ts           |  6 ++++++
+ 2 files changed, 15 insertions(+), 2 deletions(-)
+
+diff --git a/client/src/pages/home.tsx b/client/src/pages/home.tsx
+index daab00e..9ef4594 100644
+--- a/client/src/pages/home.tsx
++++ b/client/src/pages/home.tsx
+@@ -19,10 +19,17 @@ import { ChangelogTimeline, type ChangelogRelease } from "@/components/changelog
+ import { cn } from "@/lib/utils";
+ import type { SurveyCase, Surveyor, SystemSettings } from "@shared/schema";
+ 
+-const APP_VERSION = "v2.8.1";
+-const RELEASE_DATE = "2026-10-12";
++const APP_VERSION = "v2.8.2";
++const RELEASE_DATE = "2026-10-28";
+ 
+ const CHANGELOG: ChangelogRelease[] = [
++  {
++    version: "v2.8.2",
++    date: "2026-10-28",
++    items: [
++      "開放其他網頁（例如測量案件排程）讀取案件與測量員清單，只開放讀取，不開放新增、修改、刪除",
++    ],
++  },
+   {
+     version: "v2.8.1",
+     date: "2026-10-12",
+diff --git a/server/index.ts b/server/index.ts
+index c545e37..e2a9c59 100644
+--- a/server/index.ts
++++ b/server/index.ts
+@@ -22,6 +22,12 @@ app.use(
+ 
+ app.use(express.urlencoded({ extended: false }));
+ 
++// 允許「測量案件排程」等其他網頁讀取案件與測量員清單（只開放 GET，不開放新增、修改、刪除）
++app.use(["/api/cases", "/api/surveyors"], (req, res, next) => {
++  if (req.method === "GET") res.setHeader("Access-Control-Allow-Origin", "*");
++  next();
++});
++
+ export function log(message: string, source = "express") {
+   const formattedTime = new Date().toLocaleTimeString("en-US", {
+     hour: "numeric",
+-- 
+2.43.0
+
