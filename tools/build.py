@@ -1,7 +1,8 @@
 """把 src/survey-cases.html 打包成離線單檔版，並產生可散佈的 zip。
 
-用法：python3 tools/build.py            （內建 data/seed.json 的資料）
+用法：python3 tools/build.py            （內建 data/seed.json 的資料，並更新 release/）
       python3 tools/build.py --no-seed  （第一次開啟為空白）
+      python3 tools/build.py --test     （測試版：資料與正式版分開，輸出到 dist/測試版，不更新 release/）
 """
 import json, pathlib, re, sys, zipfile
 
@@ -20,12 +21,16 @@ REPO_RAW = "https://github.com/gn01918004-hub/work-paper/raw/main/release/survey
 CDN_TAG = '<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>'
 
 
-def build(seed: bool) -> None:
+def build(seed: bool, test: bool = False) -> None:
     html = SRC.read_text(encoding="utf-8")
     assert CDN_TAG in html and 'const BUILD = "artifact";' in html and "const SEED = null;" in html
     # 內嵌 Excel 元件，離線也能匯入／匯出
     html = html.replace(CDN_TAG, "<script>" + LIB.read_text(encoding="utf-8").replace("</script", "<\\/script") + "</script>")
     html = html.replace('const BUILD = "artifact";', 'const BUILD = "standalone";')
+    if test:
+        assert "const TEST_BUILD = false;" in html
+        html = html.replace("const TEST_BUILD = false;", "const TEST_BUILD = true;")
+        html = html.replace("<title>測量案件排程</title>", "<title>測量案件排程（測試版）</title>", 1)
     if seed:
         html = html.replace("const SEED = null;", "const SEED = " + SEED.read_text(encoding="utf-8").replace("</", "<\\/") + ";")
     html = html.replace('<meta name="claude:viewport-fit-sides" content="cover">\n', "")
@@ -42,14 +47,20 @@ def build(seed: bool) -> None:
            '<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}'
            'body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>'
            '</head><body>\n' + rest + '\n</body></html>\n')
-    OUT_DIR.mkdir(parents=True, exist_ok=True)
-    OUT.write_text(doc, encoding="utf-8")
-    (OUT_DIR / GUIDE.name).write_text(GUIDE.read_text(encoding="utf-8"), encoding="utf-8")
-    with zipfile.ZipFile(ZIP, "w", zipfile.ZIP_DEFLATED) as z:
-        for f in (OUT, OUT_DIR / GUIDE.name):
-            z.write(f, f"測量案件排程/{f.name}")
-    print(f"built {OUT.relative_to(ROOT)} ({OUT.stat().st_size:,} bytes), {ZIP.relative_to(ROOT)}")
-    if seed:
+    out_dir, out, zip_path, folder = OUT_DIR, OUT, ZIP, "測量案件排程"
+    if test:
+        folder = "測量案件排程-測試版"
+        out_dir = ROOT / "dist" / folder
+        out = out_dir / "測量案件排程-測試版.html"
+        zip_path = ROOT / "dist" / "測量案件排程-測試版.zip"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out.write_text(doc, encoding="utf-8")
+    (out_dir / GUIDE.name).write_text(GUIDE.read_text(encoding="utf-8"), encoding="utf-8")
+    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as z:
+        for f in (out, out_dir / GUIDE.name):
+            z.write(f, f"{folder}/{f.name}")
+    print(f"built {out.relative_to(ROOT)} ({out.stat().st_size:,} bytes), {zip_path.relative_to(ROOT)}")
+    if seed and not test:
         release(html)
 
 
@@ -73,4 +84,4 @@ def release(html: str) -> None:
 
 
 if __name__ == "__main__":
-    build(seed="--no-seed" not in sys.argv)
+    build(seed="--no-seed" not in sys.argv, test="--test" in sys.argv)

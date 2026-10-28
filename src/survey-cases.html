@@ -401,6 +401,10 @@ a.btn{text-decoration:none}
 .lk:hover .lkp,.lk:focus .lkp{display:block}
 .lk .lkp b{font-family:var(--f-num)}
 .lkb{display:inline-block;margin-left:6px;font-size:11px;font-weight:700;letter-spacing:.04em;color:#fff;background:var(--gnss);border-radius:4px;padding:0 6px;line-height:17px;vertical-align:1px}
+tr.msdup td{color:var(--ink-3)}
+#msnRows td:last-child{white-space:normal;min-width:220px}
+.mstag{font-size:11.5px;font-weight:700;border-radius:4px;padding:1px 6px;white-space:nowrap}
+.mstag.new{background:var(--gnss-soft);color:var(--gnss)} .mstag.dup{background:var(--warn-soft);color:var(--warn)} .mstag.bad{background:var(--crit-soft);color:var(--crit)}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(22px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:9px 18px;border-radius:999px;z-index:40;font-size:13px;box-shadow:var(--shadow)}
 
 /* ---------- narrow ---------- */
@@ -442,6 +446,7 @@ a.btn{text-decoration:none}
       <div class="store" id="storeTag"><i></i><span id="storeTxt">連線中…</span></div>
       <button class="sbtn" type="button" id="btnExport"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M10 3v10M6 9l4 4 4-4M3.5 16.5h13"/></svg><span>匯出 Excel</span></button>
       <button class="sbtn" type="button" id="btnImport"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M10 13V3M6 7l4-4 4 4M3.5 16.5h13"/></svg><span>匯入 Excel／備份</span></button>
+      <button class="sbtn" type="button" id="btnMs" aria-haspopup="dialog"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 7a6 6 0 0 1 10.5-3.5M16 13a6 6 0 0 1-10.5 3.5"/><path d="M14.5 1.5v2.5H12M5.5 18.5V16H8"/></svg><span id="msTxt">案件同步</span><i class="abdot" id="msDot"></i></button>
       <button class="sbtn" type="button" id="btnAuto" hidden aria-haspopup="dialog"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 6.5A1.5 1.5 0 0 1 4.5 5H8l1.5 1.5h6A1.5 1.5 0 0 1 17 8v6.5a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 3 14.5Z"/><path d="m7.5 11 2 2 3.5-3.5"/></svg><span id="abTxt">自動備份</span><i class="abdot" id="abDot"></i></button>
       <button class="sbtn" type="button" id="btnBackup" hidden><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="3" width="14" height="14" rx="2"/><path d="M7 3v5h6V3"/></svg><span>下載備份檔</span></button>
       <button class="sbtn vbtn" type="button" id="btnVer" aria-haspopup="dialog"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="10" cy="10" r="7.5"/><path d="M10 6v4.5l3 1.8"/></svg><b class="vnum" id="verTag"></b><span>・更新內容</span><i class="vdot" id="verDot" hidden></i></button>
@@ -658,6 +663,40 @@ a.btn{text-decoration:none}
   <div class="dr-f"><span id="aLeft"></span><div class="toolbar" id="aBtns"></div></div>
 </div>
 
+<div class="dialog vdlg" id="msdlg" hidden role="dialog" aria-labelledby="msTitle">
+  <div class="dr-h"><h2 id="msTitle">Map-Scheduler 案件同步</h2><button class="btn sm" type="button" id="msClose">關閉 Esc</button></div>
+  <div class="card-b" style="gap:14px">
+    <div class="f"><label for="msUrl">Map-Scheduler 網址</label>
+      <div class="nofield"><input class="in" id="msUrl" type="url" placeholder="例 https://map-scheduler.onrender.com" autocomplete="off"><button class="btn sm" type="button" id="msLoad">連線並載入測量員</button></div></div>
+    <div class="f"><label for="msWho">測量員（只抓這位測量員的案件）</label>
+      <select class="in" id="msWho" style="width:100%"><option value="">（先連線載入，或從檔案匯入）</option></select></div>
+    <label class="check"><input type="checkbox" id="msCheckOn" checked> 開啟時自動檢查新案件</label>
+    <label class="check"><input type="checkbox" id="msAutoOn"> 有新案件時直接匯入，不再詢問</label>
+    <div class="hint" id="msStat" style="font-size:12.5px"></div>
+    <details><summary style="cursor:pointer;font-size:13px;font-weight:600">連不上時怎麼辦？</summary>
+      <ul class="abnote" style="margin-top:8px">
+        <li>可以先用檔案匯入：在瀏覽器打開「網址/api/cases」，按 Ctrl+S 存成檔案，再按下面的「從檔案匯入」</li>
+        <li>要直接連線，Map-Scheduler 的伺服器需要允許其他網頁讀取案件（CORS），請管理者加上設定</li>
+        <li>免費主機閒置時會休眠，第一次連線可能要等 1 分鐘</li>
+      </ul>
+      <div class="toolbar" style="margin-top:8px"><button class="btn sm" type="button" id="msFileBtn">從檔案匯入</button><input type="file" id="msFile" accept=".json,application/json" hidden></div>
+    </details>
+  </div>
+  <div class="dr-f"><span></span><div class="toolbar"><button class="btn" type="button" id="msSave">儲存設定</button><button class="btn primary" type="button" id="msNow">立即檢查新案件</button></div></div>
+</div>
+
+<div class="dialog vdlg" id="msnew" hidden role="dialog" aria-labelledby="msnTitle" style="width:min(880px,calc(100% - 32px))">
+  <div class="dr-h"><h2 id="msnTitle">你有新案件</h2><button class="btn sm" type="button" id="msnLater">稍後再說</button></div>
+  <div class="card-b" style="gap:12px">
+    <div id="msnHead" style="font-size:13px;color:var(--ink-2)"></div>
+    <div class="tw" style="max-height:52vh;overflow:auto;border:1px solid var(--line);border-radius:10px"><table>
+      <thead><tr><th><input type="checkbox" id="msnAll" aria-label="全選" checked></th><th>排定日期／時間</th><th>種類</th><th>地段</th><th>地號</th><th>案件編號</th><th>收件</th><th>申請人</th><th>說明</th></tr></thead>
+      <tbody id="msnRows"></tbody></table></div>
+    <label class="check"><input type="checkbox" id="msnAuto"> 以後有新案件直接匯入，不再詢問</label>
+  </div>
+  <div class="dr-f"><button class="btn sm" type="button" id="msnSkip">這些都不要匯入</button><div class="toolbar"><button class="btn primary" type="button" id="msnGo">匯入勾選的案件</button></div></div>
+</div>
+
 <div class="dialog" id="mdlg" hidden role="dialog" aria-labelledby="mTitle">
   <div class="dr-h"><h2 id="mTitle">依母表新增月份</h2><button class="btn sm" type="button" id="mClose">關閉</button></div>
   <div class="card-b" style="gap:14px">
@@ -679,12 +718,20 @@ a.btn{text-decoration:none}
 <script>
 (() => {
 const BUILD = "artifact";
-const VERSION = "3.7.1";
+const TEST_BUILD = false; /* 打包測試版時改為 true：使用獨立的資料，不影響正式版 */
+const VERSION = "3.8.0";
 /* 離線版檢查更新：讀取 GitHub 公開倉庫的版本檔，新版本以 zip 提供下載 */
 const UPDATE_URL = "https://raw.githubusercontent.com/gn01918004-hub/work-paper/main/release/version.json";
 const DOWNLOAD_URL = "https://github.com/gn01918004-hub/work-paper/raw/main/release/survey-schedule.zip";
 /* 更新紀錄（與 CHANGELOG.md 同步）：第一筆為目前版本 */
 const CHANGELOG = [
+  {v:"3.8.0", date:"2026-10-28", title:"Map-Scheduler 案件同步", items:[
+    "左下角新增「案件同步」：設定 Map-Scheduler 網址並選擇測量員，就會抓該員的案件",
+    "開啟時自動檢查，有新案件會跳出「你有新案件」確認視窗，勾選後再匯入；也可設定直接匯入",
+    "已有同案號的案件不會重複匯入，會直接對應到你已輸入的案件",
+    "案號 1150914-81-2400 自動拆成收件 2026/09/14、案件編號 2400",
+    "案件類型→種類、所有權人→申請人、日期與排件時間→排定日期與時間、地段地號→段代碼與地號",
+    "連不上伺服器時，可改用「從檔案匯入」"]},
   {v:"3.7.1", date:"2026-10-27", title:"一次刪除未排日期的案件", items:[
     "排程表上方「未排日期的案件」展開後，新增「刪除全部未排日期的案件」按鈕",
     "刪除前會再確認一次，可選擇先下載備份再刪除",
@@ -788,7 +835,7 @@ const HOLIDAYS = {"2026-01-01":"元旦","2026-02-16":"春節","2026-02-17":"春�
 const S = {
   cases:new Map(), agents:[], types:DEFAULT_TYPES.slice(), sections:DEFAULT_SECTIONS.map(s => ({...s})), months:{},
   migrations:[], view:"dash", month:null, calMonth:null, q:"", fType:"", fStatus:"", fSlots:true,
-  subs:[], editing:null, kind:"case", notice:"", inst:[], status:"", lv:"休假", mpop:false, mpopYear:2026,
+  ms:{}, msSeen:[], subs:[], editing:null, kind:"case", notice:"", inst:[], status:"", lv:"休假", mpop:false, mpopYear:2026,
   mode:"loading", loaded:false, canWrite:true, secEdit:null, town:"", mEdit:null, mDays:new Set(),
 };
 let SECMAP = new Map(), DAYOWNER = new Map();
@@ -836,7 +883,7 @@ function isWorkday(d){
 
 /* ---------- 儲存層：雲端 db ／ 本機 ---------- */
 let db = null, dl = null;
-const LS = "survey-cases-local-v1";
+const LS_MAIN = "survey-cases-local-v1", LS = TEST_BUILD ? "survey-cases-test-v1" : LS_MAIN;
 function localLoad(){
   try {
     const o = JSON.parse(localStorage.getItem(LS) || "{}");
@@ -845,7 +892,7 @@ function localLoad(){
   } catch(e){}
 }
 function localSave(){ try { localStorage.setItem(LS, JSON.stringify({cases:[...S.cases.values()], ...listsBody()})); } catch(e){ toast("瀏覽器儲存空間不足，請先下載備份"); } abSchedule(); }
-const listsBody = () => ({agents:S.agents, types:S.types, sections:S.sections, months:S.months, migrations:S.migrations});
+const listsBody = () => ({agents:S.agents, types:S.types, sections:S.sections, months:S.months, migrations:S.migrations, ms:S.ms, msSeen:S.msSeen});
 function applyLists(d){
   if (!d) return;
   if (d.agents) S.agents = d.agents.map(a => ({...a}));
@@ -853,6 +900,8 @@ function applyLists(d){
   if (d.sections && d.sections.length) S.sections = d.sections.map(s => ({...s}));
   if (d.months) S.months = JSON.parse(JSON.stringify(d.months));
   if (d.migrations) S.migrations = [...d.migrations];
+  if (d.ms) S.ms = {...d.ms};
+  if (d.msSeen) S.msSeen = [...d.msSeen];
   rebuild();
 }
 const body = c => { const o = {...c}; delete o.id; return o; };
@@ -908,7 +957,12 @@ async function boot(){
   const claude = BUILD === "artifact" ? window.claude : null;
   db = claude && claude.use ? await claude.use("db").catch(() => null) : null;
   if (!db) {
-    S.mode = "local"; S.loaded = true; localLoad();
+    S.mode = "local"; S.loaded = true;
+    if (TEST_BUILD) {   // 測試版第一次開啟：複製一份正式資料來測，之後兩邊互不影響
+      try { if (!localStorage.getItem(LS) && localStorage.getItem(LS_MAIN)) { localStorage.setItem(LS, localStorage.getItem(LS_MAIN)); setTimeout(() => toast("測試版：已複製一份正式資料，測試不會影響正式版"), 600); } } catch(e){}
+      showBanner("這是測試版：資料與正式版分開存放，可以放心測試。");
+    }
+    localLoad();
     let empty = true; try { empty = !localStorage.getItem(LS); } catch(e){}
     if (empty && SEED) { SEED.cases.forEach(c => S.cases.set(c.id, norm(c))); applyLists(SEED); localSave(); toast(SEED.cases.length ? `已載入內建資料：${SEED.cases.length} 筆案件` : "已載入代理人通訊錄與常用資料，可以開始新增案件"); }
     $("#storeTag").classList.add("local");
@@ -918,6 +972,7 @@ async function boot(){
     render(); await runMigrations();
     abInit();
     setTimeout(() => checkUpdate(false), 1200);
+    if (msCfg().check && msCfg().url && msCfg().surveyor) setTimeout(() => msCheck(false), 1800);
     return;
   }
   S.mode = "cloud"; $("#storeTxt").textContent = "雲端同步中";
@@ -1082,7 +1137,7 @@ function matches(c, q){
   if (S.fStatus === "__overdue" && !isOver(c)) return false;
   if (S.fStatus === "__nonotice" && !needsNotice(c)) return false;
   if (S.fStatus && !S.fStatus.startsWith("__") && c.status !== S.fStatus) return false;
-  if (q) { const s = secOf(c); if (![c.type,c.no,c.sec,s&&s.name,s&&s.town,c.lot,c.applicant,c.agent,c.note,c.reason,c.status,c.leaveType,c.time,(c.inst||[]).join(" "),...subHay(c)].join(" ").toLowerCase().includes(q)) return false; }
+  if (q) { const s = secOf(c); if (![c.type,c.no,c.sec,s&&s.name,s&&s.town,c.lot,c.applicant,c.agent,c.note,c.reason,c.status,c.leaveType,c.time,(c.inst||[]).join(" "),c.extNo,c.surveyor,...subHay(c)].join(" ").toLowerCase().includes(q)) return false; }
   return true;
 }
 /* 連件：子件只記自己的案件編號、種類、段代碼、地號，其餘欄位與主件（第一件）共用 */
@@ -1572,7 +1627,7 @@ const AB = {handle:null, state:"off", last:"", timer:null, busy:false, pending:f
 const AB_DELAY = 3000;
 function idb(){
   return new Promise((res, rej) => {
-    const r = indexedDB.open("survey-autobackup", 1);
+    const r = indexedDB.open(TEST_BUILD ? "survey-autobackup-test" : "survey-autobackup", 1);
     r.onupgradeneeded = () => r.result.createObjectStore("kv");
     r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
   });
@@ -1687,6 +1742,175 @@ $("#adlg").addEventListener("click", e => {
   if (a === "pick") abPick(); else if (a === "grant") abGrant(); else if (a === "now") abRun(true); else if (a === "off") abOff();
 });
 $("#banner").addEventListener("click", e => { if (e.target.id === "abBanner") AB.state === "needperm" ? abGrant() : abPick(); });
+
+/* ---------- Map-Scheduler 案件同步：選測量員 → 抓該員案件 → 確認後匯入 ---------- */
+const MS_SRC = "map-scheduler";
+const msCfg = () => ({url:"", surveyor:"", auto:false, check:true, ...(S.ms || {})});
+const msBase = () => msCfg().url.trim().replace(/\/+$/, "");
+async function msFetch(path, base){
+  const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 70000);   // 免費主機休眠喚醒約需 1 分鐘
+  try {
+    const r = await fetch((base || msBase()) + path, {signal:ctl.signal, cache:"no-store"});
+    if (!r.ok) throw Object.assign(new Error("http"), {code:"http", status:r.status});
+    return await r.json();
+  } catch(e){
+    if (e.name === "AbortError") throw Object.assign(new Error("timeout"), {code:"timeout"});
+    if (e.code) throw e;
+    throw Object.assign(new Error("net"), {code:e instanceof SyntaxError ? "json" : "net"});
+  } finally { clearTimeout(t); }
+}
+const msErrText = e => ({timeout:"伺服器沒有回應：免費主機可能在休眠，約 1 分鐘後再試一次。", http:`伺服器回應錯誤（${e.status}），請確認網址。`, json:"讀到的不是案件資料，請確認網址。"})[e.code]
+  || "連不上伺服器：可能是網址不對、沒有網路，或伺服器還沒開放其他網頁讀取（CORS）。可以先用下方「從檔案匯入」。";
+/* 案號 1150914-81-2400 → 收件 2026-09-14（民國 115 年）、案件編號 2400；中間那段不使用 */
+function msParseNo(s){
+  const raw = String(s || "").trim(), m = raw.match(/^(\d{2,3})(\d{2})(\d{2})-\d+-(\d+)$/);
+  if (!m) return {no:raw, recv:"", ok:false};
+  const d = `${Number(m[1]) + 1911}-${m[2]}-${m[3]}`, valid = iso(parseISO(d)) === d;
+  return {no:m[4], recv:valid ? d : "", ok:valid};
+}
+/* 地段地號 「田寮段571地號」→ 段代碼 309、地號 571 */
+function msParseParcel(s){
+  const t = String(s || "").replace(/\s+/g, ""), m = t.match(/^(.*?段(?:[^0-9]*?小段)?)([0-9][0-9\-、,，.]*)(?:地號)?(.*)$/);
+  if (!m) return {sec:"", lot:"", ok:false};
+  const tm = m[1].match(/^(.*?)[鎮鄉市區](?=.+段)/), town = tm ? tm[1].replace(/^.*[縣市]/, "") : "";   // 「苑裡鎮中山段」→ 鄉鎮「苑裡」
+  const name = m[1].replace(/^.*?[鎮鄉市區](?=.+段)/, "");
+  let code = "", ambiguous = false;
+  if (/^\d+段?$/.test(name)) code = String(Number(name.replace("段", "")));
+  else {
+    let hits = S.sections.filter(x => x.name === name);
+    if (!hits.length) hits = S.sections.filter(x => x.name.startsWith(name) || name.startsWith(x.name));
+    if (town && hits.some(x => x.town === town)) hits = hits.filter(x => x.town === town);
+    ambiguous = hits.length > 1;   // 例：中山段在苑裡、通霄都有
+    code = hits[0] ? hits[0].code : "";
+  }
+  return {sec:code, lot:m[2].replace(/[、，,]/g, ".").replace(/\.$/, ""), ok:!!code, ambiguous, rest:m[3]};
+}
+const msTime = s => { const t = String(s || ""), m = t.match(/(\d{1,2})[:：.](\d{2})/) || t.match(/^(\d{1,2})$/); return m ? `${pad(m[1])}:${m[2] || "00"}` : ""; };
+function msToCase(x){
+  const n = msParseNo(x.caseNumber), p = msParseParcel(x.landParcel), tm = msTime(x.scheduledTime);
+  const notes = [x.notes || "", !p.ok && x.landParcel ? `地段地號：${x.landParcel}` : "", !tm && x.scheduledTime ? `排件時間：${x.scheduledTime}` : ""].filter(Boolean).join("／");
+  return {c:{kind:"case", type:x.caseType || "", sched:/^\d{4}-\d{2}-\d{2}$/.test(x.surveyDate || "") ? x.surveyDate : "", time:tm, recv:n.recv, no:n.no,
+      sec:p.sec, lot:p.lot, applicant:x.owner || "", agent:"", notice:"", inst:[], status:"", note:notes,
+      extId:x.id, extSrc:MS_SRC, extNo:x.caseNumber || "", surveyor:x.surveyor || ""},
+    warn:[!n.ok && x.caseNumber ? "案號格式不同，原樣放入案件編號" : "", !p.ok && x.landParcel ? "找不到地段，原文放在備註" : "",
+      p.ambiguous ? `「${x.landParcel}」有同名地段，已選${SECMAP.get(p.sec)?.town || ""}，請確認` : "", !tm && x.scheduledTime ? "時間格式不同，原文放在備註" : ""].filter(Boolean)};
+}
+function msDiff(list){
+  const who = msCfg().surveyor, mine = list.filter(x => x && x.id && (x.surveyor || "").trim() === who);
+  const linked = new Set(all().map(c => c.extId).filter(Boolean)), seen = new Set(S.msSeen || []);
+  const fresh = [];
+  for (const x of mine) {
+    if (linked.has(x.id) || seen.has(x.id)) continue;
+    const {c, warn} = msToCase(x);
+    const dup = c.no ? all().find(o => !o.extId && !isLeave(o) && o.no === c.no && (!c.recv || !o.recv || o.recv === c.recv)) : null;   // 同案號：可能已手動輸入
+    fresh.push({x, c, warn, dup});
+  }
+  fresh.sort((a,b) => sk(a.c).localeCompare(sk(b.c)));
+  return {mine, fresh};
+}
+let msPending = [];
+async function msCheck(manual, list){
+  const cfg = msCfg();
+  if (!cfg.surveyor || (!list && !cfg.url)) { if (manual) { openMs(); msStat("請先填網址並選擇測量員。", true); } return; }
+  msDot("busy");
+  if (!list) {
+    if (manual) msStat("正在讀取 Map-Scheduler 的案件…（伺服器休眠時可能要等 1 分鐘）");
+    try { list = await msFetch("/api/cases"); }
+    catch(e){ msDot("warn"); if (manual) msStat(msErrText(e), true); return; }
+  }
+  if (!Array.isArray(list)) { msDot("warn"); if (manual) msStat("讀到的資料格式不對，請確認網址或檔案。", true); return; }
+  const {mine, fresh} = msDiff(list);
+  S.msLastAt = new Date(); msDot("ok");
+  msStat(`${cfg.surveyor} 在 Map-Scheduler 共 ${mine.length} 件，新案件 ${fresh.length} 件。`);
+  if (!fresh.length) { if (manual) toast(`${cfg.surveyor} 沒有新案件`); return; }
+  if (cfg.auto) { await msImport(fresh.filter(f => !f.dup), fresh.filter(f => f.dup)); return; }
+  openMsNew(fresh);
+}
+async function msImport(sel, link){
+  if (!S.canWrite) { toast("你只有檢視權限"); return; }
+  try {
+    for (const f of sel) await saveCase({...f.c});
+    for (const f of link) await saveCase({...f.dup, extId:f.x.id, extSrc:MS_SRC, extNo:f.x.caseNumber || ""});   // 已有同案號：只做對應，不改內容
+    toast(`已匯入 ${sel.length} 件新案件${link.length ? `，${link.length} 件對應到現有案件` : ""}`);
+  } catch(e){ writeFailed(e); }
+}
+function openMsNew(fresh){
+  msPending = fresh; closeMs();
+  $("#msnTitle").textContent = `你有 ${fresh.length} 件新案件`;
+  const dups = fresh.filter(f => f.dup).length;
+  $("#msnHead").innerHTML = `來自 Map-Scheduler・測量員 <b>${esc(msCfg().surveyor)}</b>。勾選要匯入的案件${dups ? `；<span class="mstag dup">已有同案號</span> 的 ${dups} 件預設不勾選，不勾選時會直接對應到你已輸入的案件，不會重複` : ""}。`;
+  $("#msnRows").innerHTML = fresh.map((f, i) => { const c = f.c, s = secOf(c);
+    return `<tr class="${f.dup ? "msdup" : ""}"><td><input type="checkbox" data-i="${i}" ${f.dup ? "" : "checked"} aria-label="匯入第 ${i + 1} 件"></td>
+      <td class="dt">${c.sched ? `${md(c.sched)}<span>週${dow(c.sched)}</span>` : "<span>未排</span>"}${c.time ? `<small class="tm">${esc(c.time)}</small>` : ""}</td>
+      <td><b>${esc(c.type)}</b></td><td>${s ? esc(s.name) : `<span style="color:var(--crit)">${esc(f.x.landParcel || "")}</span>`}</td><td class="num">${esc(c.lot)}</td>
+      <td class="num">${esc(c.no)}</td><td class="num">${md(c.recv)}</td><td>${esc(c.applicant)}</td>
+      <td>${f.dup ? `<span class="mstag dup">已有同案號</span>` : `<span class="mstag new">新案件</span>`}${f.warn.map(w => ` <span class="mstag bad" title="${esc(w)}">!</span>`).join("")}${f.warn.length ? `<small class="due" style="color:var(--ink-3)">${esc(f.warn.join("；"))}</small>` : ""}</td></tr>`; }).join("");
+  $("#msnAll").checked = fresh.every(f => !f.dup); $("#msnAuto").checked = false;
+  msCount(); $("#scrim").hidden = false; $("#msnew").hidden = false; $("#msnGo").focus();
+}
+function msCount(){ const n = $("#msnRows").querySelectorAll("input:checked").length; $("#msnGo").textContent = n ? `匯入勾選的 ${n} 件` : "只對應同案號、不匯入"; }
+function closeMsNew(){ if ($("#msnew").hidden) return; $("#msnew").hidden = true; if ($("#drawer").hidden && $("#mdlg").hidden && $("#msdlg").hidden) $("#scrim").hidden = true; }
+async function msnGo(){
+  const checked = new Set([...$("#msnRows").querySelectorAll("input:checked")].map(x => Number(x.dataset.i)));
+  const sel = msPending.filter((f, i) => checked.has(i)), link = msPending.filter((f, i) => !checked.has(i) && f.dup);
+  if ($("#msnAuto").checked) { S.ms = {...msCfg(), auto:true}; await saveLists(); }
+  closeMsNew(); await msImport(sel, link);
+}
+async function msnSkip(){
+  S.msSeen = [...new Set([...(S.msSeen || []), ...msPending.map(f => f.x.id)])];
+  closeMsNew();
+  try { await saveLists(); toast(`已略過 ${msPending.length} 件，之後不會再提醒這些案件`); } catch(e){ writeFailed(e); }
+}
+function msStat(t, bad){ const el = $("#msStat"); el.textContent = t || ""; el.style.color = bad ? "var(--crit)" : "var(--ink-2)"; }
+function msDot(st){ $("#msDot").className = "abdot" + (st === "ok" ? " ok" : st === "warn" ? " warn" : ""); }
+function msFillWho(names, cur){
+  const list = [...new Set(names.filter(Boolean))];
+  if (cur && !list.includes(cur)) list.unshift(cur);
+  $("#msWho").innerHTML = `<option value="">（選擇測量員）</option>` + list.map(n => `<option${n === cur ? " selected" : ""}>${esc(n)}</option>`).join("");
+}
+function openMs(){
+  const cfg = msCfg();
+  $("#msUrl").value = cfg.url; $("#msCheckOn").checked = cfg.check; $("#msAutoOn").checked = cfg.auto;
+  msFillWho(S.msNames || [], cfg.surveyor);
+  msStat(cfg.surveyor ? `目前同步：${cfg.surveyor}` : "");
+  $("#scrim").hidden = false; $("#msdlg").hidden = false; $("#msUrl").focus();
+}
+function closeMs(){ if ($("#msdlg").hidden) return; $("#msdlg").hidden = true; if ($("#drawer").hidden && $("#mdlg").hidden && $("#msnew").hidden) $("#scrim").hidden = true; }
+function msReadForm(){ return {url:$("#msUrl").value.trim(), surveyor:$("#msWho").value, check:$("#msCheckOn").checked, auto:$("#msAutoOn").checked}; }
+async function msSave(quiet){
+  S.ms = msReadForm(); $("#msTxt").textContent = S.ms.surveyor ? `案件同步・${S.ms.surveyor}` : "案件同步";
+  try { await saveLists(); if (!quiet) toast("已儲存同步設定"); } catch(e){ writeFailed(e); }
+}
+$("#btnMs").onclick = openMs;
+$("#msClose").onclick = closeMs;
+$("#msLoad").onclick = async () => {
+  const base = $("#msUrl").value.trim().replace(/\/+$/, "");
+  if (!/^https?:\/\//.test(base)) { msStat("請輸入完整網址，例如 https://map-scheduler.onrender.com", true); return; }
+  msStat("連線中…（伺服器休眠時可能要等 1 分鐘）");
+  try {
+    const list = await msFetch("/api/surveyors", base);
+    S.msNames = (Array.isArray(list) ? list : []).map(x => x && x.name).filter(Boolean);
+    msFillWho(S.msNames, $("#msWho").value || msCfg().surveyor);
+    msStat(`已連線，共 ${S.msNames.length} 位測量員，請選擇一位。`);
+  } catch(e){ msStat(msErrText(e), true); }
+};
+$("#msSave").onclick = () => msSave(false);
+$("#msNow").onclick = async () => { await msSave(true); if (!msCfg().surveyor) { msStat("請先選擇測量員。", true); return; } msCheck(true); };
+$("#msFileBtn").onclick = () => $("#msFile").click();
+$("#msFile").onchange = async e => {
+  const f = e.target.files[0]; e.target.value = ""; if (!f) return;
+  let list; try { list = JSON.parse(await f.text()); } catch(err){ msStat("這個檔案不是案件資料（JSON）。", true); return; }
+  if (!Array.isArray(list)) { msStat("這個檔案不是案件清單。", true); return; }
+  S.msNames = [...new Set([...(S.msNames || []), ...list.map(x => x && x.surveyor).filter(Boolean)])];
+  msFillWho(S.msNames, $("#msWho").value || msCfg().surveyor);
+  if (!$("#msWho").value) { msStat(`檔案裡有 ${list.length} 件，請選擇測量員後再按一次「從檔案匯入」。`); return; }
+  await msSave(true); msCheck(true, list);
+};
+$("#msnLater").onclick = closeMsNew;
+$("#msnGo").onclick = msnGo;
+$("#msnSkip").onclick = msnSkip;
+$("#msnRows").addEventListener("change", msCount);
+$("#msnAll").onchange = e => { $("#msnRows").querySelectorAll("input[type=checkbox]").forEach(x => x.checked = e.target.checked); msCount(); };
 
 /* ---------- 事件 ---------- */
 function go(v){
@@ -1855,7 +2079,7 @@ $("#readout").onclick = e => {
   const code = $("#cSec").value.trim(); closeDrawer(); go("sec"); secFormReset(); $("#sCode").value = code; $("#sName").focus();
 };
 $("#dClose").onclick = closeDrawer; $("#dCancel").onclick = closeDrawer;
-$("#scrim").onclick = () => { closeDrawer(); closeMonth(); closeVer(); closeUpd(); closeAb(); };
+$("#scrim").onclick = () => { closeDrawer(); closeMonth(); closeVer(); closeUpd(); closeAb(); closeMs(); closeMsNew(); };
 const VSEEN = "survey-version-seen", USKIP = "survey-update-skip";
 const vcmp = (a, b) => { const x = String(a).split(".").map(Number), y = String(b).split(".").map(Number); for (let i = 0; i < 3; i++) { const d = (x[i] || 0) - (y[i] || 0); if (d) return d; } return 0; };
 let updInfo = null;
@@ -1969,16 +2193,17 @@ $("#typeForm").onsubmit = async e => {
 $("#typeTags").onclick = async e => { const b = e.target.closest("[data-del-type]"); if (!b) return; S.types.splice(Number(b.dataset.delType), 1); try { await saveLists(); } catch(err){ writeFailed(err); } };
 
 document.addEventListener("keydown", e => {
-  if (e.key === "Escape") { if (!$("#adlg").hidden) closeAb(); else if (!$("#udlg").hidden) closeUpd(); else if (!$("#vdlg").hidden) closeVer(); else if (!$("#drawer").hidden) closeDrawer(); else if (!$("#mdlg").hidden) closeMonth(); return; }
+  if (e.key === "Escape") { if (!$("#msnew").hidden) closeMsNew(); else if (!$("#msdlg").hidden) closeMs(); else if (!$("#adlg").hidden) closeAb(); else if (!$("#udlg").hidden) closeUpd(); else if (!$("#vdlg").hidden) closeVer(); else if (!$("#drawer").hidden) closeDrawer(); else if (!$("#mdlg").hidden) closeMonth(); return; }
   const typing = /INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName || "");
-  if (typing || e.metaKey || e.ctrlKey || e.altKey || !$("#drawer").hidden || !$("#mdlg").hidden || !$("#vdlg").hidden || !$("#udlg").hidden || !$("#adlg").hidden) return;
+  if (typing || e.metaKey || e.ctrlKey || e.altKey || !$("#drawer").hidden || !$("#mdlg").hidden || !$("#vdlg").hidden || !$("#udlg").hidden || !$("#adlg").hidden || !$("#msdlg").hidden || !$("#msnew").hidden) return;
   if (e.key === "n" || e.key === "N") { e.preventDefault(); openDrawer(null); }
   if (S.view === "list" && (e.key === "t" || e.key === "T")) { e.preventDefault(); backToToday(); return; }
   if (e.key === "/") { e.preventDefault(); if (S.view !== "list") go("list"); $("#q").focus(); }
 });
 
 try { const v = localStorage.getItem("survey-view"); if (v && $("#view-"+v)) S.view = v; } catch(e){}
-$("#verTag").textContent = "v" + VERSION;
+$("#verTag").textContent = "v" + VERSION + (TEST_BUILD ? " 測試版" : "");
+setTimeout(() => { const w = msCfg().surveyor; if (w) $("#msTxt").textContent = `案件同步・${w}`; }, 0);
 try { $("#verDot").hidden = localStorage.getItem(VSEEN) === VERSION; } catch(e){ $("#verDot").hidden = false; }
 rebuild();
 go(S.view);
