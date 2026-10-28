@@ -1,0 +1,23 @@
+Map-Scheduler 需要加的設定（讓「測量案件排程」離線版可以直接讀取案件）
+=====================================================================
+
+這段只開放「讀取」（GET）兩個網址：案件清單 /api/cases、測量員清單 /api/surveyors。
+不會開放新增、修改、刪除。
+
+加在 server/index.ts，放在 app.use(express.urlencoded({ extended: false })); 這一行的下面：
+
+----------------------------------------------------------------
+// 允許「測量案件排程」等其他網頁讀取案件與測量員清單（只開放讀取）
+app.use(["/api/cases", "/api/surveyors"], (req, res, next) => {
+  if (req.method === "GET") res.setHeader("Access-Control-Allow-Origin", "*");
+  next();
+});
+----------------------------------------------------------------
+
+加完後重新部署。部署好可以這樣確認：
+在瀏覽器打開 網址/api/surveyors，按 F12 → Network → 點那一筆 → Response Headers
+看得到 access-control-allow-origin: * 就成功了。
+
+說明：
+・目前 /api/cases 本來就不用登入就能讀，加這段只是讓其他網頁也能讀，不會多開放其他資料。
+・如果之後 Map-Scheduler 加了登入，這個做法就要改，到時再調整。
