@@ -69,6 +69,19 @@ main{padding:8px 12px calc(24px + env(safe-area-inset-bottom));max-width:680px;m
 .intro ol{padding-left:20px;margin:8px 0}
 .intro .big{display:block;width:100%;margin-top:12px;border:0;border-radius:10px;padding:12px;background:var(--accent);color:#fff;font-weight:700;font-size:16px}
 .hint{font-size:12.5px;color:var(--ink-3)}
+.setup{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;margin:16px 4px;line-height:1.65;font-size:14.5px}
+.setup h2{font-size:17px;margin:0 0 6px}
+.setup ol{padding-left:20px;margin:8px 0}
+.setup li{margin:6px 0}
+.setup code{background:color-mix(in srgb,var(--ink-3) 12%,transparent);border-radius:4px;padding:0 4px;font-size:13px}
+.setup textarea{width:100%;height:120px;font:12px/1.4 ui-monospace,Menlo,Consolas,monospace;border:1px solid var(--line);border-radius:8px;padding:8px;background:var(--bg);color:var(--ink);resize:vertical}
+.setup input{width:100%;font-size:15px;border:1px solid var(--line);border-radius:8px;padding:9px 10px;background:var(--bg);color:var(--ink)}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:8px 14px;font-weight:600}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:#fff}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.ok{color:var(--ok);font-weight:700}.bad{color:var(--over);font-weight:700}
+.foot{text-align:center;margin:18px 0 6px;font-size:13px;color:var(--ink-3)}
+.foot button{border:0;background:none;color:var(--cyan);font-weight:600;padding:4px 6px}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom));transform:translateX(-50%);background:#0f1b2d;color:#fff;border-radius:999px;padding:8px 16px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;max-width:90vw}
 .toast.on{opacity:1}
 </style>
@@ -124,7 +137,40 @@ const stText = c => {
 /* 代理人電話：本地號碼補上苗栗區碼 037，手機原樣 */
 const telHref = t => { const n = String(t || "").replace(/[^\d]/g, ""); if (!n) return ""; return n.startsWith("0") ? n : n.length === 8 && n.startsWith("37") ? "0" + n : n.length <= 7 ? "037" + n : n; };
 
-let D = null, tab = "next", q = "", nextDays = 30;
+let D = null, tab = "next", q = "", nextDays = 30, view = "list";
+
+/* 雲端硬碟自動讀取：使用者自己部署的 Google Apps Script 網頁應用程式，帶密鑰讀 survey-backup-latest.json（只讀）。
+   網址與密鑰只存在這支手機；也可用「#drive=…」連結從電腦帶到手機 */
+const DKEY = KEY + "-drive";
+let DRV = null, lastFetch = 0, fetching = false;
+try { DRV = JSON.parse(localStorage.getItem(DKEY) || "null"); } catch(e){}
+function saveDrive(cfg){ DRV = cfg; try { cfg ? localStorage.setItem(DKEY, JSON.stringify(cfg)) : localStorage.removeItem(DKEY); } catch(e){} }
+if (location.hash.startsWith("#drive=")) {
+  try { const c = JSON.parse(decodeURIComponent(escape(atob(location.hash.slice(7))))); if (c.u && c.k) { saveDrive(c); setTimeout(() => toast("已設定雲端硬碟自動讀取"), 300); } } catch(e){}
+  history.replaceState(null, "", location.pathname);
+}
+async function driveGet(cfg){
+  const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 30000);
+  try {
+    const r = await fetch(`${cfg.u}?k=${encodeURIComponent(cfg.k)}&t=${Date.now()}`, {signal:ctl.signal, cache:"no-store"});
+    const o = await r.json();
+    if (!o.ok) throw new Error(o.error === "key" ? "密鑰不符，請重新設定" : o.error === "notfound" ? "雲端硬碟找不到 survey-backup-latest.json" : "讀取失敗");
+    return o;
+  } catch(e){ throw e.name === "AbortError" ? new Error("雲端硬碟沒有回應") : e.message && !/fetch|JSON|network/i.test(e.message) ? e : new Error("連不上雲端硬碟"); }
+  finally { clearTimeout(t); }
+}
+async function autoFetch(manual){
+  if (!DRV || fetching) return;
+  fetching = true; lastFetch = Date.now();
+  const w = $("#when"), keep = w.textContent; w.textContent = "從雲端硬碟更新中…";
+  try {
+    const o = await driveGet(DRV);
+    const before = D && D.at;
+    accept(o.text, true);
+    if (manual || (D && D.at !== before)) toast(D && D.at !== before ? "已更新為最新資料" : "已是最新資料");
+  } catch(e){ w.textContent = keep; toast(`${e.message}，先顯示上次的資料`); }
+  finally { fetching = false; render(); }
+}
 
 function load(){
   try { const s = localStorage.getItem(KEY); if (s) D = JSON.parse(s); } catch(e){}
@@ -132,16 +178,16 @@ function load(){
 }
 function toast(t){ const el = $("#toast"); el.textContent = t; el.classList.add("on"); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove("on"), 2200); }
 
-function accept(text){
+function accept(text, quiet){
   let o;
   try { o = JSON.parse(text); } catch(e){ toast("讀不到這個檔案，請選 survey-backup-latest.json"); return; }
   if (!o || !Array.isArray(o.cases)) { toast("這不是測量案件排程的備份檔"); return; }
   D = {at:o.exportedAt || new Date().toISOString(), cases:o.cases, sections:o.sections || [], agents:o.agents || []};
   try { localStorage.setItem(KEY, JSON.stringify(D)); } catch(e){ toast("手機儲存空間不足，這次看完不會保留"); }
-  toast(`已載入 ${D.cases.filter(c => !isLeave(c)).length} 件案件`);
-  render();
+  if (!quiet) toast(`已載入 ${D.cases.filter(c => !isLeave(c)).length} 件案件`);
+  view = "list"; render();
 }
-$("#pick").onclick = () => $("#file").click();
+$("#pick").onclick = () => DRV ? autoFetch(true) : $("#file").click();
 $("#file").onchange = e => { const f = e.target.files[0]; if (!f) return; f.text().then(accept); e.target.value = ""; };
 
 function card(c){
@@ -168,18 +214,86 @@ const match = c => {
 };
 const sk = c => (c.sched || "9999") + (c.time || "99");
 
+const SCRIPT = k => `// 測量案件查閱：讀取雲端硬碟裡最新的 survey-backup-latest.json（只讀，不會修改任何檔案）
+const KEY = "${k}";   // 密鑰：網址加上這組才讀得到，請勿外流
+const FILE = "survey-backup-latest.json";
+
+function doGet(e) {
+  if (!e || !e.parameter || e.parameter.k !== KEY) return out({ ok: false, error: "key" });
+  const it = DriveApp.getFilesByName(FILE);
+  let best = null;
+  while (it.hasNext()) {
+    const f = it.next();
+    if (!f.isTrashed() && (!best || f.getLastUpdated() > best.getLastUpdated())) best = f;
+  }
+  if (!best) return out({ ok: false, error: "notfound" });
+  return out({ ok: true, updated: best.getLastUpdated().toISOString(), text: best.getBlob().getDataAsString("UTF-8") });
+}
+
+function out(o) {
+  return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);
+}
+`;
+const newKey = () => { const b = new Uint8Array(18); crypto.getRandomValues(b); return btoa(String.fromCharCode(...b)).replace(/[+/=]/g, c => ({"+":"-","/":"_","=":""})[c]); };
+const shareLink = c => `${location.origin}${location.pathname}#drive=${btoa(unescape(encodeURIComponent(JSON.stringify(c))))}`;
+let setupKey = "";
+function renderSetup(){
+  const main = $("#main");
+  $("#ctl").hidden = true;
+  setupKey = setupKey || (DRV && DRV.k) || newKey();
+  main.innerHTML = `<div class="setup"><h2>設定：開啟時自動讀雲端硬碟</h2>
+    設定一次就好，之後每次打開都會自動讀最新的 <code>survey-backup-latest.json</code>。<b>建議在電腦上設定</b>，完成後再把連結傳到手機。
+    <ol>
+      <li>打開 <a href="https://script.google.com/home/projects/create" target="_blank" rel="noopener">script.google.com 新專案</a>（用存備份的那個 Google 帳號）</li>
+      <li>把裡面原本的程式碼全部刪掉，貼上下面這段（已含你專屬的密鑰）：
+        <textarea id="code" readonly>${esc(SCRIPT(setupKey))}</textarea>
+        <div class="row"><button class="btn" type="button" id="copyCode">複製程式碼</button></div></li>
+      <li>按上方「部署」→「新增部署作業」→ 齒輪選「網頁應用程式」<br>
+        執行身分：<b>我</b>；誰可以存取：<b>所有人</b> → 按「部署」</li>
+      <li>要求授權時：選帳號 →「進階」→「前往（不安全）」→「允許」（這是你自己的程式，Google 才會這樣提醒）</li>
+      <li>複製「網頁應用程式」網址（https://script.google.com/macros/s/…/exec），貼到這裡：
+        <input id="url" type="url" placeholder="https://script.google.com/macros/s/…/exec" value="${esc(DRV ? DRV.u : "")}" autocomplete="off">
+        <div class="row"><button class="btn pri" type="button" id="test">測試並儲存</button><span id="tst"></span></div></li>
+    </ol>
+    <div id="share" hidden><b>完成！</b>把下面這個連結傳到手機（例如用 LINE 傳給自己），在手機打開一次就設定好了：
+      <input id="link" readonly><div class="row"><button class="btn" type="button" id="copyLink">複製連結</button></div></div>
+    <div class="row" style="margin-top:14px"><button class="btn" type="button" id="back">${D ? "返回" : "先不用，改成手動選檔"}</button>${DRV ? `<button class="btn" type="button" id="off">取消自動讀取</button>` : ""}</div>
+    <p class="hint">密鑰就像密碼：拿到「網址＋密鑰」的人才讀得到你的備份檔。若懷疑外流，回到這裡按「重新產生密鑰」再部署一次。<br><button class="btn" type="button" id="regen" style="margin-top:6px">重新產生密鑰</button></p></div>`;
+  const copy = (txt, msg) => (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).then(() => toast(msg), () => toast("請長按文字手動複製"));
+  $("#copyCode").onclick = () => copy(SCRIPT(setupKey), "已複製程式碼");
+  $("#back").onclick = () => { view = "list"; render(); };
+  $("#regen").onclick = () => { setupKey = newKey(); renderSetup(); toast("已產生新密鑰，請把新程式碼貼回去並重新部署"); };
+  if ($("#off")) $("#off").onclick = () => { saveDrive(null); view = "list"; render(); toast("已取消自動讀取"); };
+  $("#test").onclick = async () => {
+    const u = $("#url").value.trim(), st = $("#tst");
+    if (!/^https:\/\/script\.google(usercontent)?\.com\/.+/.test(u)) { st.innerHTML = `<span class="bad">網址看起來不對，應該是 https://script.google.com/macros/s/…/exec</span>`; return; }
+    st.textContent = "測試中…（第一次約需幾秒）";
+    try {
+      const cfg = {u, k:setupKey}, o = await driveGet(cfg);
+      saveDrive(cfg); accept(o.text, true); view = "setup"; renderSetup();
+      $("#tst").innerHTML = `<span class="ok">成功！讀到 ${new Date(o.updated).toLocaleString("zh-TW", {hour12:false})} 的備份</span>`;
+      $("#share").hidden = false; $("#link").value = shareLink(cfg);
+      $("#copyLink").onclick = () => copy(shareLink(cfg), "已複製連結");
+    } catch(e){ st.innerHTML = `<span class="bad">${esc(e.message)}</span>。請確認「誰可以存取」選了「所有人」，且程式碼是這一頁複製的`; }
+  };
+  hh();
+}
+
 function render(){
   TODAY = iso(new Date());
   const main = $("#main");
+  if (view === "setup") return renderSetup();
   if (!D) {
     $("#ctl").hidden = true; $("#when").textContent = "尚未載入資料";
     main.innerHTML = `<div class="intro"><h2>第一次使用</h2>
       這是測量案件排程的<b>手機查閱版</b>，只能看、不能改。資料來自電腦版的備份檔，只存在這支手機裡。
-      <ol><li>電腦版左下角「自動備份」選 Google 雲端硬碟（或 OneDrive）的同步資料夾</li>
-      <li>手機按下面的按鈕，從雲端硬碟選 <b>survey-backup-latest.json</b></li>
-      <li>之後打開就能直接看；想看最新的，按右上角「更新資料」再選一次</li></ol>
-      <button class="big" type="button" onclick="document.getElementById('file').click()">選擇備份檔</button>
+      <ol><li>電腦版左下角「自動備份」選 Google 雲端硬碟的同步資料夾</li>
+      <li><b>建議：</b>設定「開啟時自動讀雲端硬碟」，之後打開就是最新的資料</li>
+      <li>或者手動從雲端硬碟選 <b>survey-backup-latest.json</b>，想看最新的再選一次</li></ol>
+      <button class="big" type="button" id="goSetup">設定自動讀雲端硬碟</button>
+      <button class="big" type="button" style="background:var(--brand)" onclick="document.getElementById('file').click()">手動選擇備份檔</button>
       <p class="hint">小技巧：用瀏覽器的「加到主畫面」，之後像 App 一樣一點就開。</p></div>`;
+    $("#goSetup").onclick = () => { view = "setup"; render(); };
     hh(); return;
   }
   D.secMap = D.secMap || new Map(D.sections.map(s => [String(s.code), s]));
@@ -215,7 +329,10 @@ function render(){
     html = sect("逾期未結", over, true) + sect("補正中", corr, true) + sect("已排定", sched, true) + sect("未排日期", none, false);
     if (!html) html = `<div class="empty">${q ? "找不到符合的案件" : "沒有未結案件"}</div>`;
   }
+  html += `<div class="foot">${DRV ? "開啟時自動讀雲端硬碟" : "目前是手動選檔"}・<button type="button" id="cfg">${DRV ? "設定" : "設定自動讀取"}</button>${DRV ? `・<button type="button" id="manual">手動選檔</button>` : ""}</div>`;
   main.innerHTML = html;
+  $("#cfg").onclick = () => { view = "setup"; render(); scrollTo(0, 0); };
+  if ($("#manual")) $("#manual").onclick = () => $("#file").click();
   const mb = $("#moreDays"); if (mb) mb.onclick = () => { nextDays += 30; render(); };
   hh();
 }
@@ -224,8 +341,12 @@ $("#q").oninput = e => { q = e.target.value.trim().toLowerCase(); render(); };
 $("#main").onclick = e => { const c = e.target.closest(".card[data-x]"); if (c && !e.target.closest("a")) c.classList.toggle("open"); };
 function hh(){ document.documentElement.style.setProperty("--hh", $("#hd").offsetHeight + "px"); }
 addEventListener("resize", hh);
-document.addEventListener("visibilitychange", () => { if (!document.hidden && iso(new Date()) !== TODAY) render(); });   // 隔天再打開時重新算「今天」
-load(); render(); hh();
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) return;
+  if (DRV && Date.now() - lastFetch > 5 * 60e3) autoFetch(false);   // 切回來超過 5 分鐘就再讀一次
+  else if (iso(new Date()) !== TODAY) render();                     // 隔天再打開時重新算「今天」
+});
+load(); render(); hh(); autoFetch(false);
 if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(() => {});
 </script>
 </body>

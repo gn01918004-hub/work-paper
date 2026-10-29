@@ -27,6 +27,7 @@
 `docs/` 是手機專用的唯讀頁面，以 GitHub Pages 發布於 https://gn01918004-hub.github.io/work-paper/ 。
 在手機選擇電腦版的備份檔（`survey-backup-latest.json`，建議放在雲端硬碟同步資料夾）後，就能查看接下來的案件與未結案件。
 頁面本身不含任何案件資料，資料只存在該手機的瀏覽器中；可加到主畫面，離線也能開。
+也可設定「開啟時自動讀雲端硬碟」：使用者在自己的 Google 帳號部署一支 Apps Script 網頁應用程式（程式碼由頁面產生，含隨機密鑰，只讀取 `survey-backup-latest.json`），手機每次開啟時自動抓最新的備份。
 
 ## 版本
 
