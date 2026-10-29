@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0f1b2d">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="案件查閱">
+<title>測量案件查閱</title>
+<link rel="icon" type="image/svg+xml" href="icon.svg">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="manifest" href="manifest.webmanifest">
+<style>
+/* 測量案件排程・手機查閱版：只讀，資料來自電腦版的備份檔（survey-backup-latest.json），存在這支手機裡 */
+:root{
+  --bg:#eef1f6;--surface:#fff;--ink:#0f1b2d;--ink-2:#46536a;--ink-3:#7c879a;--line:#dde2ea;
+  --brand:#0f1b2d;--accent:#ff2f7d;--cyan:#0ea5b7;--over:#e11d48;--soon:#d97706;--ok:#059669;--prog:#2563eb;
+  --lv-off:#f97316;--lv-trip:#a855f7;--lv-class:#0ea5e9;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#0a1220;--surface:#121c2d;--ink:#e8edf5;--ink-2:#b3bdcc;--ink-3:#7f8a9c;--line:#223047;
+  --over:#fb7185;--soon:#fbbf24;--ok:#34d399;--prog:#60a5fa;
+}}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 -apple-system,BlinkMacSystemFont,"PingFang TC","Noto Sans TC","Microsoft JhengHei",sans-serif}
+button{font:inherit;color:inherit}
+header{position:sticky;top:0;z-index:5;background:var(--brand);color:#fff;padding:calc(10px + env(safe-area-inset-top)) 16px 10px}
+.hrow{display:flex;align-items:center;gap:10px}
+.logo{width:28px;height:28px;flex:none}
+h1{font-size:17px;margin:0;font-weight:700;letter-spacing:.02em}
+.sub{font-size:12px;color:#aab6c8}
+.sub.stale{color:#fbbf24}
+.upd{margin-left:auto;border:1px solid #33435c;background:transparent;color:#fff;border-radius:999px;padding:6px 12px;font-size:13px}
+.search{margin-top:10px;width:100%;border:0;border-radius:10px;padding:9px 12px;font-size:15px;background:#1d2a40;color:#fff}
+.search::placeholder{color:#8292aa}
+.tabs{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:10px;background:#1d2a40;border-radius:10px;padding:3px}
+.tabs button{border:0;background:transparent;color:#aab6c8;border-radius:8px;padding:7px 0;font-size:14px;font-weight:600}
+.tabs button[aria-pressed="true"]{background:#fff;color:var(--ink)}
+.tabs .n{display:inline-block;min-width:18px;padding:0 5px;margin-left:4px;border-radius:9px;background:var(--accent);color:#fff;font-size:11px;line-height:18px}
+main{padding:8px 12px calc(24px + env(safe-area-inset-bottom));max-width:680px;margin:0 auto}
+.day{position:sticky;top:var(--hh,150px);z-index:2;background:var(--bg);padding:10px 4px 6px;font-size:13px;font-weight:700;color:var(--ink-2);display:flex;gap:8px;align-items:baseline}
+.day .tag{font-size:11px;font-weight:700;color:#fff;background:var(--accent);border-radius:4px;padding:0 6px}
+.day .cnt{margin-left:auto;font-weight:500;color:var(--ink-3)}
+.sect{padding:14px 4px 6px;font-size:13px;font-weight:700;color:var(--ink-2)}
+.card{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--prog);border-radius:10px;padding:10px 12px;margin:6px 0}
+.card.over{border-left-color:var(--over)}
+.card.soon{border-left-color:var(--soon)}
+.card.todo{border-left-color:var(--ink-3)}
+.r1{display:flex;align-items:baseline;gap:8px}
+.tm{font-weight:700;font-variant-numeric:tabular-nums}
+.ty{font-weight:700}
+.st{margin-left:auto;font-size:12px;font-weight:700;border-radius:999px;padding:1px 8px;white-space:nowrap;background:color-mix(in srgb,var(--prog) 14%,transparent);color:var(--prog)}
+.st.over{background:color-mix(in srgb,var(--over) 14%,transparent);color:var(--over)}
+.st.soon{background:color-mix(in srgb,var(--soon) 16%,transparent);color:var(--soon)}
+.st.todo{background:color-mix(in srgb,var(--ink-3) 16%,transparent);color:var(--ink-2)}
+.st.done{background:color-mix(in srgb,var(--ok) 14%,transparent);color:var(--ok)}
+.r2{color:var(--ink-2);font-size:14px;margin-top:2px}
+.r3{display:flex;flex-wrap:wrap;gap:4px 12px;color:var(--ink-3);font-size:13px;margin-top:4px}
+.r3 a{color:var(--cyan);text-decoration:none;font-weight:600}
+.note{margin-top:6px;font-size:13px;color:var(--ink-2);white-space:pre-wrap;background:color-mix(in srgb,var(--ink-3) 8%,transparent);border-radius:6px;padding:6px 8px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.card.open .note{display:block;-webkit-line-clamp:unset}
+.lv{border-left-width:4px;background-image:repeating-linear-gradient(135deg,color-mix(in srgb,var(--c) 18%,transparent) 0 4px,transparent 4px 9px);border-left-color:var(--c)}
+.lv .ty{color:var(--c)}
+.empty{text-align:center;color:var(--ink-3);padding:40px 12px}
+.more{display:block;width:100%;margin:12px 0;border:1px dashed var(--line);background:transparent;border-radius:10px;padding:10px;color:var(--ink-2)}
+.intro{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px;margin:16px 4px;line-height:1.7}
+.intro h2{font-size:17px;margin:0 0 8px}
+.intro ol{padding-left:20px;margin:8px 0}
+.intro .big{display:block;width:100%;margin-top:12px;border:0;border-radius:10px;padding:12px;background:var(--accent);color:#fff;font-weight:700;font-size:16px}
+.hint{font-size:12.5px;color:var(--ink-3)}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom));transform:translateX(-50%);background:#0f1b2d;color:#fff;border-radius:999px;padding:8px 16px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;max-width:90vw}
+.toast.on{opacity:1}
+</style>
+</head>
+<body>
+<header id="hd">
+  <div class="hrow">
+    <svg class="logo" viewBox="0 0 34 34" aria-hidden="true"><rect width="34" height="34" rx="8" fill="#16243b"/><path d="M17 5 L30 28 H4 Z" fill="none" stroke="#ff2f7d" stroke-width="2.8" stroke-linejoin="round"/><circle cx="17" cy="20.5" r="3.3" fill="#2fd0e2"/></svg>
+    <div><h1>測量案件查閱</h1><div class="sub" id="when">尚未載入資料</div></div>
+    <button class="upd" type="button" id="pick">更新資料</button>
+  </div>
+  <div id="ctl" hidden>
+    <input class="search" id="q" type="search" placeholder="搜尋申請人、地號、案件編號、代理人" autocomplete="off" enterkeyhint="search">
+    <div class="tabs" role="tablist">
+      <button type="button" data-tab="next" aria-pressed="true">接下來</button>
+      <button type="button" data-tab="open" aria-pressed="false">未結案件<span class="n" id="nOpen" hidden></span></button>
+    </div>
+  </div>
+</header>
+<main id="main"></main>
+<input type="file" id="file" hidden>
+<div class="toast" id="toast" role="status"></div>
+<script>
+"use strict";
+const KEY = "survey-mobile-v1";
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c]);
+const pad = n => String(n).padStart(2, "0");
+const iso = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const parse = s => { const [y, m, d] = s.split("-").map(Number); return new Date(y, m - 1, d); };
+const addDays = (s, n) => { const d = parse(s); d.setDate(d.getDate() + n); return iso(d); };
+const diff = (a, b) => Math.round((parse(a) - parse(b)) / 864e5);
+const md = s => s ? `${+s.slice(5, 7)}/${+s.slice(8, 10)}` : "";
+const DOW = "日一二三四五六";
+const dow = s => DOW[parse(s).getDay()];
+let TODAY = iso(new Date());
+
+/* 規則與電腦版相同：完成、撤回、駁回、延期、擴大檢測算結案；補正依期限（補正日＋15 天，再寬限 2 天）判斷逾期 */
+const CLOSED = new Set(["完成", "撤回", "駁回", "延期", "擴大檢測"]);
+const LV = {"休假":"--lv-off", "出差":"--lv-trip", "上課":"--lv-class"};
+const isLeave = c => c.kind === "leave";
+const corrLeft = c => c.status === "補正" && c.statusAt ? diff(addDays(c.statusAt.slice(0, 10), 15), TODAY) : null;
+const level = c => {
+  if (c.status === "補正") { const L = corrLeft(c); return L === null ? "prog" : L < -2 ? "over" : L < 3 ? "soon" : "prog"; }
+  if (c.sched && c.sched < TODAY) return "over";
+  return c.status ? "prog" : "todo";
+};
+const stText = c => {
+  if (c.status === "補正") { const L = corrLeft(c); return L === null ? "補正" : L > 0 ? `補正・剩 ${L} 天` : L === 0 ? "補正・今天到期" : L >= -2 ? "補正・寬限中" : `補正・逾期 ${-L - 2} 天`; }
+  if (c.sched && c.sched < TODAY) return c.status ? `${c.status}・逾期` : "逾期未結";
+  return c.status || "未辦理";
+};
+/* 代理人電話：本地號碼補上苗栗區碼 037，手機原樣 */
+const telHref = t => { const n = String(t || "").replace(/[^\d]/g, ""); if (!n) return ""; return n.startsWith("0") ? n : n.length === 8 && n.startsWith("37") ? "0" + n : n.length <= 7 ? "037" + n : n; };
+
+let D = null, tab = "next", q = "", nextDays = 30;
+
+function load(){
+  try { const s = localStorage.getItem(KEY); if (s) D = JSON.parse(s); } catch(e){}
+  try { tab = localStorage.getItem(KEY + "-tab") || "next"; } catch(e){}
+}
+function toast(t){ const el = $("#toast"); el.textContent = t; el.classList.add("on"); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove("on"), 2200); }
+
+function accept(text){
+  let o;
+  try { o = JSON.parse(text); } catch(e){ toast("讀不到這個檔案，請選 survey-backup-latest.json"); return; }
+  if (!o || !Array.isArray(o.cases)) { toast("這不是測量案件排程的備份檔"); return; }
+  D = {at:o.exportedAt || new Date().toISOString(), cases:o.cases, sections:o.sections || [], agents:o.agents || []};
+  try { localStorage.setItem(KEY, JSON.stringify(D)); } catch(e){ toast("手機儲存空間不足，這次看完不會保留"); }
+  toast(`已載入 ${D.cases.filter(c => !isLeave(c)).length} 件案件`);
+  render();
+}
+$("#pick").onclick = () => $("#file").click();
+$("#file").onchange = e => { const f = e.target.files[0]; if (!f) return; f.text().then(accept); e.target.value = ""; };
+
+function card(c){
+  if (isLeave(c)) {
+    const t = c.leaveType || c.status || "休假";
+    return `<div class="card lv" style="--c:var(${LV[t] || "--lv-off"})"><div class="r1"><span class="ty">${esc(t)}</span>${c.time ? `<span class="tm">${esc(c.time)}</span>` : ""}</div>${c.reason ? `<div class="r2">${esc(c.reason)}</div>` : ""}</div>`;
+  }
+  const sec = D.secMap.get(String(c.sec || "")), lv = c.insp ? "prog" : level(c);
+  const ag = c.agent ? D.agMap.get(c.agent) : null, tel = ag && telHref(ag.mobile || ag.tel);
+  const subs = (c.subs || []).length ? `＋${c.subs.length} 件` : "";
+  const where = [sec ? `${sec.town}・${sec.name}` : c.sec, c.lot ? `${c.lot}地號` : "", subs].filter(Boolean).join(" ");
+  const st = c.insp ? `現場抓點` : stText(c);
+  return `<div class="card ${lv}"${c.note ? ' data-x' : ""}>
+    <div class="r1">${c.time ? `<span class="tm">${esc(c.time)}</span>` : ""}<span class="ty">${esc(c.type || "案件")}</span><span class="st ${lv}">${esc(st)}</span></div>
+    <div class="r2">${esc(where || "（未填地段地號）")}</div>
+    <div class="r3">${c.applicant ? `<span>申請人 ${esc(c.applicant)}</span>` : ""}${c.no ? `<span>編號 ${esc(c.no)}</span>` : ""}${c.agent ? `<span>代理人 ${esc(c.agent)}${tel ? ` <a href="tel:${tel}">撥號</a>` : ""}</span>` : ""}${c.insp ? `<span>原排定 ${md(c.ref.sched)}${c.ref.time ? " " + esc(c.ref.time) : ""}</span>` : ""}</div>
+    ${c.note ? `<div class="note">${esc(c.note)}</div>` : ""}
+  </div>`;
+}
+const match = c => {
+  if (!q) return true;
+  const sec = D.secMap.get(String(c.sec || ""));
+  return [c.type, c.applicant, c.agent, c.no, c.lot, c.sec, sec && sec.name, c.note, c.reason, c.leaveType, ...(c.subs || []).flatMap(x => [x.no, x.lot])].join(" ").toLowerCase().includes(q);
+};
+const sk = c => (c.sched || "9999") + (c.time || "99");
+
+function render(){
+  TODAY = iso(new Date());
+  const main = $("#main");
+  if (!D) {
+    $("#ctl").hidden = true; $("#when").textContent = "尚未載入資料";
+    main.innerHTML = `<div class="intro"><h2>第一次使用</h2>
+      這是測量案件排程的<b>手機查閱版</b>，只能看、不能改。資料來自電腦版的備份檔，只存在這支手機裡。
+      <ol><li>電腦版左下角「自動備份」選 Google 雲端硬碟（或 OneDrive）的同步資料夾</li>
+      <li>手機按下面的按鈕，從雲端硬碟選 <b>survey-backup-latest.json</b></li>
+      <li>之後打開就能直接看；想看最新的，按右上角「更新資料」再選一次</li></ol>
+      <button class="big" type="button" onclick="document.getElementById('file').click()">選擇備份檔</button>
+      <p class="hint">小技巧：用瀏覽器的「加到主畫面」，之後像 App 一樣一點就開。</p></div>`;
+    hh(); return;
+  }
+  D.secMap = D.secMap || new Map(D.sections.map(s => [String(s.code), s]));
+  D.agMap = D.agMap || new Map(D.agents.map(a => [a.name, a]));
+  const age = diff(TODAY, D.at.slice(0, 10)), at = new Date(D.at);
+  const w = $("#when"); w.textContent = `資料：${at.getMonth() + 1}/${at.getDate()} ${pad(at.getHours())}:${pad(at.getMinutes())}${age >= 1 ? `（${age} 天前）` : ""}`; w.classList.toggle("stale", age >= 2);
+  $("#ctl").hidden = false;
+  const cases = D.cases.filter(c => !isLeave(c));
+  const open = cases.filter(c => !CLOSED.has(c.status));
+  $("#nOpen").textContent = open.length; $("#nOpen").hidden = !open.length;
+  document.querySelectorAll(".tabs button").forEach(b => b.setAttribute("aria-pressed", b.dataset.tab === tab));
+  let html = "";
+  if (tab === "next") {
+    const end = addDays(TODAY, nextDays - 1);
+    const insp = cases.filter(c => c.status === "現場抓點" && c.inspectAt).map(c => ({...c, insp:true, ref:c, sched:c.inspectAt.slice(0, 10), time:c.inspectAt.slice(11, 16)}));
+    const items = [...cases.filter(c => c.status !== "延期" && c.status !== "擴大檢測"), ...insp, ...D.cases.filter(isLeave)]
+      .filter(c => c.sched && c.sched >= TODAY && (q || c.sched <= end) && match(c)).sort((a, b) => sk(a).localeCompare(sk(b)));
+    const by = new Map(); items.forEach(c => { if (!by.has(c.sched)) by.set(c.sched, []); by.get(c.sched).push(c); });
+    for (const [d, list] of by) {
+      const n = diff(d, TODAY), tag = n === 0 ? "今天" : n === 1 ? "明天" : n === 2 ? "後天" : "";
+      const nc = list.filter(c => !isLeave(c)).length;
+      html += `<div class="day">${md(d)} 週${dow(d)}${tag ? `<span class="tag">${tag}</span>` : ""}<span class="cnt">${nc ? nc + " 件" : ""}</span></div>` + list.map(card).join("");
+    }
+    if (!html) html = `<div class="empty">${q ? "找不到符合的案件" : `接下來 ${nextDays} 天沒有排定的案件`}</div>`;
+    if (!q) html += `<button class="more" type="button" id="moreDays">再多看 30 天</button>`;
+  } else {
+    const list = open.filter(match);
+    const over = list.filter(c => level(c) === "over").sort((a, b) => sk(a).localeCompare(sk(b)));
+    const corr = list.filter(c => c.status === "補正" && level(c) !== "over").sort((a, b) => (corrLeft(a) ?? 99) - (corrLeft(b) ?? 99));
+    const rest = list.filter(c => level(c) !== "over" && c.status !== "補正");
+    const sched = rest.filter(c => c.sched).sort((a, b) => sk(a).localeCompare(sk(b))), none = rest.filter(c => !c.sched);
+    const sect = (t, l, dated) => l.length ? `<div class="sect">${t}（${l.length}）</div>` + l.map(c => dated && c.sched ? card({...c, time:`${md(c.sched)}${c.time ? " " + c.time : ""}`}) : card(c)).join("") : "";
+    html = sect("逾期未結", over, true) + sect("補正中", corr, true) + sect("已排定", sched, true) + sect("未排日期", none, false);
+    if (!html) html = `<div class="empty">${q ? "找不到符合的案件" : "沒有未結案件"}</div>`;
+  }
+  main.innerHTML = html;
+  const mb = $("#moreDays"); if (mb) mb.onclick = () => { nextDays += 30; render(); };
+  hh();
+}
+document.querySelector(".tabs").onclick = e => { const b = e.target.closest("[data-tab]"); if (!b) return; tab = b.dataset.tab; try { localStorage.setItem(KEY + "-tab", tab); } catch(e){} render(); scrollTo(0, 0); };
+$("#q").oninput = e => { q = e.target.value.trim().toLowerCase(); render(); };
+$("#main").onclick = e => { const c = e.target.closest(".card[data-x]"); if (c && !e.target.closest("a")) c.classList.toggle("open"); };
+function hh(){ document.documentElement.style.setProperty("--hh", $("#hd").offsetHeight + "px"); }
+addEventListener("resize", hh);
+document.addEventListener("visibilitychange", () => { if (!document.hidden && iso(new Date()) !== TODAY) render(); });   // 隔天再打開時重新算「今天」
+load(); render(); hh();
+if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(() => {});
+</script>
+</body>
+</html>
