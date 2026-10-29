@@ -462,7 +462,7 @@ tbody tr.insp:hover td{background:color-mix(in srgb,var(--lv-trip) 16%,var(--sur
   <aside class="side">
     <div class="brand">
       <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true"><path d="M17 4 L31 29 H3 Z" fill="none" stroke="#ff2f7d" stroke-width="2.4" stroke-linejoin="round"/><circle cx="17" cy="20.5" r="3" fill="#2fd0e2"/></svg>
-      <div><b>測量案件排程</b><small>YUANLI · TONGXIAO</small></div>
+      <div><b>測量案件排程</b><small>Tongsiao Land Office</small></div>
     </div>
     <nav class="nav" id="nav">
       <button type="button" data-view="dash" aria-current="page"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="2.5" y="2.5" width="6" height="7" rx="1.5"/><rect x="11.5" y="2.5" width="6" height="4" rx="1.5"/><rect x="2.5" y="12.5" width="6" height="5" rx="1.5"/><rect x="11.5" y="9.5" width="6" height="8" rx="1.5"/></svg>總覽</button>
@@ -706,6 +706,7 @@ tbody tr.insp:hover td{background:color-mix(in srgb,var(--lv-trip) 16%,var(--sur
       <select class="in" id="msWho" style="width:100%"><option value="">（先連線載入，或從檔案匯入）</option></select></div>
     <label class="check"><input type="checkbox" id="msCheckOn" checked> 開啟時自動檢查新案件</label>
     <label class="check"><input type="checkbox" id="msAutoOn"> 有新案件時直接匯入，不再詢問</label>
+    <label class="check"><input type="checkbox" id="msLeaveOn" checked> 一併同步這位測量員的休假／出差／上課</label>
     <div class="hint" id="msStat" style="font-size:12.5px"></div>
     <details><summary style="cursor:pointer;font-size:13px;font-weight:600">連不上時怎麼辦？</summary>
       <ul class="abnote" style="margin-top:8px">
@@ -764,12 +765,18 @@ tbody tr.insp:hover td{background:color-mix(in srgb,var(--lv-trip) 16%,var(--sur
 (() => {
 const BUILD = "artifact";
 const TEST_BUILD = false; /* 打包測試版時改為 true：使用獨立的資料，不影響正式版 */
-const VERSION = "3.11.0";
+const VERSION = "3.12.0";
 /* 離線版檢查更新：讀取 GitHub 公開倉庫的版本檔，新版本以 zip 提供下載 */
 const UPDATE_URL = "https://raw.githubusercontent.com/gn01918004-hub/work-paper/main/release/version.json";
 const DOWNLOAD_URL = "https://github.com/gn01918004-hub/work-paper/raw/main/release/survey-schedule.zip";
 /* 更新紀錄（與 CHANGELOG.md 同步）：第一筆為目前版本 */
 const CHANGELOG = [
+  {v:"3.12.0", date:"2026-10-29", title:"案件同步一併同步休假／出差／上課", items:[
+    "案件同步時，一併把 Map-Scheduler 上這位測量員的休假、出差、上課帶進來（可在「案件同步」設定關閉）",
+    "跨天的請假拆成每個工作日一筆；不是整天的，說明會加上時段（例 08:00~12:00）",
+    "Map-Scheduler 修改或取消請假時，這裡也會跟著更新或移除；只處理今天以後、由同步帶入的，自己登記的不動",
+    "LOGO 下方文字改為「Tongsiao Land Office」",
+  ]},
   {v:"3.11.0", date:"2026-10-28", title:"擴大檢測比照延期、時間快選", items:[
     "擴大檢測改成和延期一樣：原案件留在原日期作紀錄（不算逾期），並複製一筆到新的日期時間，兩筆互相連結",
     "v3.10.0 已移動過的擴大檢測案件，開啟時自動在原日期補回紀錄",
@@ -1898,7 +1905,7 @@ $("#banner").addEventListener("click", e => { if (e.target.id === "abBanner") AB
 
 /* ---------- Map-Scheduler 案件同步：選測量員 → 抓該員案件 → 確認後匯入 ---------- */
 const MS_SRC = "map-scheduler";
-const msCfg = () => ({url:"", surveyor:"", auto:false, check:true, ...(S.ms || {})});
+const msCfg = () => ({url:"", surveyor:"", auto:false, check:true, leaves:true, ...(S.ms || {})});
 const msBase = () => msCfg().url.trim().replace(/\/+$/, "");
 async function msFetch(path, base){
   const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 70000);   // 免費主機休眠喚醒約需 1 分鐘
@@ -2010,21 +2017,60 @@ async function mscGo(){
   msChgPending = [];
 }
 const msAfterNew = () => { if (msChgPending.length) setTimeout(() => openMsChg(msChgPending), 250); };
+/* 休假／出差／上課同步：Map-Scheduler 的請假是一段時間，這裡拆成每個工作日一筆（extLeave 記對方的 id）。
+   對方新增、修改、刪除都會跟著更新；只動今天以後、由同步建立的那幾筆，自己登記的不動 */
+async function msSyncLeaves(){
+  const cfg = msCfg(); if (!cfg.leaves || !S.canWrite) return null;
+  let list;
+  try { list = await msFetch("/api/leaves"); } catch(e){ return null; }   // 舊版 Map-Scheduler 或連線問題：略過，不影響案件同步
+  if (!Array.isArray(list)) return null;
+  const want = new Map();
+  for (const l of list.filter(x => x && x.id && (x.surveyorName || "").trim() === cfg.surveyor)) {
+    const [sd, st = ""] = String(l.startDatetime || "").split(" "), [ed, et = ""] = String(l.endDatetime || "").split(" ");
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(sd) || !/^\d{4}-\d{2}-\d{2}$/.test(ed)) continue;
+    const type = LEAVES[l.leaveType] ? l.leaveType : "休假";
+    for (let d = sd; d <= ed; d = addDays(d, 1)) {
+      if (d < TODAY || (!isWorkday(d) && sd !== ed)) continue;
+      const from = d === sd ? st : "08:00", to = d === ed ? et : "17:00", part = from !== "08:00" || to !== "17:00";   // 不是整天的，說明後面加上時段
+      want.set(`${l.id}|${d}`, {kind:"leave", leaveType:type, status:type, sched:d, time:part ? from : "",
+        reason:[l.reason || "", part ? `${from}~${to}` : ""].filter(Boolean).join(" "), extLeave:l.id, extSrc:MS_SRC});
+    }
+  }
+  const have = new Map(all().filter(c => isLeave(c) && c.extLeave).map(c => [`${c.extLeave}|${c.sched}`, c]));
+  let add = 0, upd = 0, del = 0;
+  try {
+    for (const [k, w] of want) {
+      const c = have.get(k);
+      if (!c) {
+        if (all().some(o => isLeave(o) && !o.extLeave && o.sched === w.sched && o.leaveType === w.leaveType)) continue;   // 已自己登記過同一天同類型
+        await saveCase({...w, note:""}); add++;
+      } else if (c.leaveType !== w.leaveType || (c.time || "") !== w.time || (c.reason || "") !== w.reason) {
+        await saveCase({...c, ...w}); upd++;
+      }
+    }
+    for (const [k, c] of have) if (!want.has(k) && c.sched >= TODAY) { await deleteCase(c.id); del++; }
+  } catch(e){ writeFailed(e); }
+  return {add, upd, del};
+}
 async function msCheck(manual, list){
   const cfg = msCfg();
+  let lv = null;
   if (!cfg.surveyor || (!list && !cfg.url)) { if (manual) { openMs(); msStat("請先填網址並選擇測量員。", true); } return; }
   msDot("busy");
   if (!list) {
     if (manual) msStat("正在讀取 Map-Scheduler 的案件…（伺服器休眠時可能要等 1 分鐘）");
     try { list = await msFetch("/api/cases"); }
     catch(e){ msDot("warn"); if (manual) msStat(msErrText(e), true); return; }
+    lv = await msSyncLeaves();
   }
   if (!Array.isArray(list)) { msDot("warn"); if (manual) msStat("讀到的資料格式不對，請確認網址或檔案。", true); return; }
   const {mine, fresh} = msDiff(list), changed = msChanges(mine);
   S.msLastAt = new Date(); msDot("ok");
-  msStat(`${cfg.surveyor} 在 Map-Scheduler 共 ${mine.length} 件，新案件 ${fresh.length} 件，日期時間有變動 ${changed.length} 件。`);
+  const lvTxt = lv && (lv.add || lv.upd || lv.del) ? `休假／出差／上課：新增 ${lv.add}、更新 ${lv.upd}、移除 ${lv.del} 天` : "";
+  msStat(`${cfg.surveyor} 在 Map-Scheduler 共 ${mine.length} 件，新案件 ${fresh.length} 件，日期時間有變動 ${changed.length} 件。${lvTxt ? lvTxt + "。" : ""}`);
+  if (lvTxt && !manual) toast(`已同步${lvTxt}`);
   msChgPending = changed;
-  if (!fresh.length) { if (changed.length) { closeMs(); openMsChg(changed); } else if (manual) toast(`${cfg.surveyor} 沒有新案件，也沒有變動`); return; }
+  if (!fresh.length) { if (changed.length) { closeMs(); openMsChg(changed); } else if (manual) toast(lvTxt ? `沒有新案件；已同步${lvTxt}` : `${cfg.surveyor} 沒有新案件，也沒有變動`); return; }
   if (cfg.auto) { await msImport(fresh.filter(f => !f.dup), fresh.filter(f => f.dup)); msAfterNew(); return; }
   openMsNew(fresh);
 }
@@ -2075,7 +2121,7 @@ function msFillWho(names, cur){
 }
 function openMs(){
   const cfg = msCfg();
-  $("#msUrl").value = cfg.url; $("#msCheckOn").checked = cfg.check; $("#msAutoOn").checked = cfg.auto;
+  $("#msUrl").value = cfg.url; $("#msCheckOn").checked = cfg.check; $("#msAutoOn").checked = cfg.auto; $("#msLeaveOn").checked = cfg.leaves;
   msFillWho(S.msNames || [], cfg.surveyor); msLinks();
   msStat(cfg.surveyor ? `目前同步：${cfg.surveyor}` : "");
   $("#scrim").hidden = false; $("#msdlg").hidden = false; $("#msUrl").focus();
@@ -2085,7 +2131,7 @@ function msLinks(){
   const base = $("#msUrl").value.trim().replace(/\/+$/, ""), ok = /^https?:\/\//.test(base);
   $("#msLinkHealth").href = ok ? base + "/api/health" : "#"; $("#msLinkCases").href = ok ? base + "/api/cases" : "#";
 }
-function msReadForm(){ return {url:$("#msUrl").value.trim(), surveyor:$("#msWho").value, check:$("#msCheckOn").checked, auto:$("#msAutoOn").checked}; }
+function msReadForm(){ return {url:$("#msUrl").value.trim(), surveyor:$("#msWho").value, check:$("#msCheckOn").checked, auto:$("#msAutoOn").checked, leaves:$("#msLeaveOn").checked}; }
 async function msSave(quiet){
   S.ms = msReadForm(); $("#msTxt").textContent = S.ms.surveyor ? `案件同步・${S.ms.surveyor}` : "案件同步";
   try { await saveLists(); if (!quiet) toast("已儲存同步設定"); } catch(e){ writeFailed(e); }
