@@ -862,12 +862,18 @@ tbody tr.insp:hover td{background:color-mix(in srgb,var(--lv-trip) 16%,var(--sur
 (() => {
 const BUILD = "artifact";
 const TEST_BUILD = false; /* 打包測試版時改為 true：使用獨立的資料，不影響正式版 */
-const VERSION = "3.16.2";
+const VERSION = "3.17.0";
 /* 離線版檢查更新：讀取 GitHub 公開倉庫的版本檔，新版本以 zip 提供下載 */
 const UPDATE_URL = "https://raw.githubusercontent.com/gn01918004-hub/work-paper/main/release/version.json";
 const DOWNLOAD_URL = "https://github.com/gn01918004-hub/work-paper/raw/main/release/survey-schedule.zip";
 /* 更新紀錄（與 CHANGELOG.md 同步）：第一筆為目前版本 */
 const CHANGELOG = [
+  {v:"3.17.0", date:"2026-10-30", title:"同步 Map-Scheduler 的延期", items:[
+    "Map-Scheduler 新增延期功能後，案件同步會一併讀取延期狀態、延期理由與延期後的新案件",
+    "已匯入的案件在 Map-Scheduler 延期時，列在比對視窗（例「辦理情形：待辦 → 延期 至 11/12・當日下雨」）；選「改成新的」會在本系統延期並建立新案件，兩筆互相連結",
+    "Map-Scheduler 延期但還沒排日期的，套用後在本系統也是「延期・未排日期」；之後對方排了日期，會再提示建立新案件",
+    "新匯入的延期案件與新案件會自動連結；本系統先延期、之後對方也延期的，會自動對應到對方的新案件，不會重複",
+  ]},
   {v:"3.16.2", date:"2026-10-30", title:"延期便簽改為二層決行格式", items:[
     "延期便簽簽核欄上方加註「依分層負責規定授權單位主管二層決行」，簽核欄只留測量員、課長",
     "便簽外框加粗",
@@ -2239,7 +2245,8 @@ function msToCase(x){
   return {c:{kind:"case", type:normType(x.caseType || ""), sched, time:tm, extSched:sched, extTime:tm, recv:n.recv, no:n.no,
       sec:p.sec, lot:p.lot, applicant:x.owner || "", courtDiv:x.courtDivision || "", courtNo:x.courtDocNo || "", word:x.receiveWord || "",
       agent:x.agent || "", notice:"", inst:[], status:"", note:notes,
-      extId:x.id, extSrc:MS_SRC, extNo:n.full, extWord:n.word, surveyor:x.surveyor || ""},
+      extId:x.id, extSrc:MS_SRC, extNo:n.full, extWord:n.word, surveyor:x.surveyor || "",
+      ...(x.status === PP ? {status:PP, ppReason:x.postponeReason || "", extPpTo:x.postponedToId || ""} : {})},
     warn:[!n.ok && x.caseNumber ? "案號格式不同，原樣放入案件編號" : "", !p.ok && x.landParcel ? "找不到地段，原文放在備註" : "",
       p.ambiguous ? `「${x.landParcel}」有同名地段，已選${SECMAP.get(p.sec)?.town || ""}，請確認` : "", !tm && x.scheduledTime ? "時間格式不同，原文放在備註" : ""].filter(Boolean)};
 }
@@ -2249,6 +2256,7 @@ function msDiff(list){
   const fresh = [];
   for (const x of mine) {
     if (linked.has(x.id) || seen.has(x.id)) continue;
+    if (x.postponedFromId && linked.has(x.postponedFromId)) continue;   // Map-Scheduler 延期產生的新案件：原案件已在本系統，改在比對視窗處理
     const {c, warn} = msToCase(x);
     const dup = c.no ? all().find(o => !o.extId && !isLeave(o) && o.no === c.no && (!c.recv || !o.recv || o.recv === c.recv)) : null;   // 同案號：可能已手動輸入
     fresh.push({x, c, warn, dup});
@@ -2260,12 +2268,25 @@ let msPending = [], msChgPending = [];
 /* 已匯入的案件，Map-Scheduler 那邊改了資料 → 比對：
    日期時間、或兩邊都有值但不同的欄位 → 提示讓使用者選；本系統空白、對方有值的欄位 → 直接補上（auto）。
    對方清空的欄位不處理；使用者自己改過、對方沒再變動的欄位不提示（比對上次看到的值 extVals） */
-function msChanges(mine){
-  const byExt = new Map();
-  all().forEach(c => { if (c.extId && !isLeave(c) && c.status !== PP && c.status !== EXP) byExt.set(c.extId, c); });   // 延期、擴大檢測後以新的那筆為準
+function msChanges(mine, list = mine){
+  const byExt = new Map(), ppWait = new Map(), msById = new Map(list.filter(x => x && x.id).map(x => [x.id, x]));
+  all().forEach(c => {
+    if (!c.extId || isLeave(c)) return;
+    if (c.status !== PP && c.status !== EXP) byExt.set(c.extId, c);   // 延期、擴大檢測後以新的那筆為準
+    else if (c.status === PP && !c.postponedTo) ppWait.set(c.extId, c);   // 本系統已延期、還沒排日期
+  });
   const out = [], auto = [];
   for (const x of mine) {
+    /* Map-Scheduler 替「本系統已延期、未排日期」的案件排了延期日期 */
+    const w = ppWait.get(x.id), to = x.postponedToId ? msById.get(x.postponedToId) : null;
+    if (w && to && w.extPpSeen !== to.id) { out.push({x, c:w, pp:{to, reason:x.postponeReason || w.ppReason || ""}, dateOnly:true, fields:[], fill:{}, vals:w.extVals || {}}); continue; }
     const c = byExt.get(x.id); if (!c) continue;
+    /* 本系統先延期（新案件沿用原案件的 extId），Map-Scheduler 之後也延期了：新案件改對應到對方的新案件 */
+    if (x.status === PP && c.postponedFrom && S.cases.get(c.postponedFrom)?.extId === x.id) {
+      if (to) auto.push({c, fill:{}, patch:{extId:to.id}, vals:c.extVals || {}});
+      continue;
+    }
+    const pp = x.status === PP && c.status !== PP && c.extPpSeen !== (x.postponedToId || "pending") ? {to, reason:x.postponeReason || ""} : null;
     const n = msToCase(x).c, nv = msVals(n), seen = c.extVals || {};
     const oldS = c.extSched ?? c.sched ?? "", oldT = c.extTime ?? c.time ?? "";
     const dateChanged = (n.sched || "") !== oldS || (n.time || "") !== oldT;
@@ -2277,16 +2298,39 @@ function msChanges(mine){
       if (!cur) fill[f] = to; else fields.push({f, label, from:cur, to});
     }
     const snapChanged = MS_FIELDS.some(([f]) => (seen[f] ?? null) !== nv[f]);
-    if (dateChanged || fields.length) out.push({x, c, sched:n.sched, time:n.time, dateChanged, fields, fill, vals:nv});
+    if (dateChanged || fields.length || pp) out.push({x, c, sched:n.sched, time:n.time, dateChanged, fields, fill, vals:nv, pp});
     else if (Object.keys(fill).length || snapChanged) auto.push({c, fill, vals:nv});
   }
   out.sort((a,b) => (a.sched || "9").localeCompare(b.sched || "9"));
   return Object.assign(out, {auto});
 }
+/* 套用 Map-Scheduler 的延期：原案件改「延期」；對方有新案件時，複製一筆到新日期並對應到對方的新案件 */
+async function msApplyPostpone(c, pp){
+  const orig = {...c, status:PP, ppReason:pp.reason || c.ppReason || ""};
+  if (!pp.to) { await saveCase(orig); return; }
+  const n = msToCase(pp.to).c;
+  if (!orig.id) orig.id = genId();
+  const copy = {...orig};
+  ["id","postponedTo","postponedToDate","postponedToTime","ppReason","statusAt","corrDue","inspectAt","extPpTo","extPpSeen"].forEach(k => delete copy[k]);
+  Object.assign(copy, {sched:n.sched, time:n.time, status:"", notice:orig.notice === "不需要通知" ? orig.notice : "未寄出",
+    extId:pp.to.id, extSched:n.sched, extTime:n.time, extVals:msVals(n),
+    postponedFrom:orig.id, postponedFromDate:orig.sched || "", postponedFromTime:orig.time || ""});
+  await saveCase(copy);
+  await saveCase({...orig, postponedTo:copy.id, postponedToDate:copy.sched, postponedToTime:copy.time});
+}
+/* 同時匯入的延期原案件與新案件：依 Map-Scheduler 的對應補上兩筆的連結 */
+async function msRelink(){
+  const byExt = new Map(all().filter(c => c.extId && !isLeave(c) && c.status !== PP).map(c => [c.extId, c]));
+  for (const o of all().filter(c => c.status === PP && !c.postponedTo && c.extPpTo)) {
+    const t = byExt.get(o.extPpTo); if (!t || t.postponedFrom) continue;
+    await saveCase({...o, postponedTo:t.id, postponedToDate:t.sched || "", postponedToTime:t.time || ""});
+    await saveCase({...t, postponedFrom:o.id, postponedFromDate:o.sched || "", postponedFromTime:o.time || ""});
+  }
+}
 /* 只需要補空白欄位、或只更新記錄的那幾件：直接存，不提示 */
 async function msAutoFill(auto){
   let n = 0;
-  for (const a of auto) { const filled = Object.keys(a.fill).length; if (filled) n++; await saveCase({...a.c, ...a.fill, extVals:a.vals}); }
+  for (const a of auto) { const filled = Object.keys(a.fill).length; if (filled) n++; await saveCase({...a.c, ...a.fill, ...(a.patch || {}), extVals:a.vals}); }
   return n;
 }
 const whenTxt = (d, t) => d ? `${md(d)}（週${dow(d)}）${t ? " " + esc(t) : ""}` : "未排";
@@ -2294,7 +2338,9 @@ function openMsChg(list){
   msChgPending = list;
   $("#mscTitle").textContent = `Map-Scheduler 有 ${list.length} 件資料變動`;
   $("#mscRows").innerHTML = list.map((f, i) => { const c = f.c, s = secOf(c);
-    const lines = [...(f.dateChanged ? [["排定", whenTxt(c.sched, c.time), whenTxt(f.sched, f.time)]] : []), ...f.fields.map(d => [d.label, esc(fieldTxt(d.f, d.from)), esc(fieldTxt(d.f, d.to))])];
+    const ppTo = f.pp && f.pp.to ? msToCase(f.pp.to).c : null;
+    const ppTxt = f.pp ? `${f.dateOnly ? "延期日期 " : "延期"}${ppTo ? ` 至 ${whenTxt(ppTo.sched, ppTo.time)}` : "（未排日期）"}${f.pp.reason ? `・${esc(f.pp.reason)}` : ""}` : "";
+    const lines = [...(f.dateChanged ? [["排定", whenTxt(c.sched, c.time), whenTxt(f.sched, f.time)]] : []), ...(f.pp ? [["辦理情形", esc(stText(c)), ppTxt]] : []), ...f.fields.map(d => [d.label, esc(fieldTxt(d.f, d.from)), esc(fieldTxt(d.f, d.to))])];
     return `<tr><td><b>${esc(c.type)}</b><span class="sub">${esc(s ? s.name : c.sec || "")} ${esc(c.lot || "")}・${esc(appText(c))}</span></td><td class="num">${esc(c.no || "")}</td>
       <td>${lines.map(([k, a]) => `<div class="chg"><span class="k">${k}</span>${a}</div>`).join("")}</td><td style="color:var(--gnss);font-weight:700">${lines.map(([k, , b]) => `<div class="chg"><span class="k">${k}</span>→ ${b}</div>`).join("")}</td>
       <td><select class="cellsel" data-i="${i}" aria-label="第 ${i + 1} 件"><option value="apply" selected>改成新的</option><option value="keep">保留目前</option></select></td></tr>`; }).join("");
@@ -2309,7 +2355,10 @@ async function mscGo(){
     for (const [i, f] of msChgPending.entries()) {
       const apply = pick[i] === "apply"; if (apply) n++;
       const patch = apply ? {...(f.dateChanged ? {sched:f.sched, time:f.time} : {}), ...Object.fromEntries(f.fields.map(d => [d.f, d.to]))} : {};
-      await saveCase({...f.c, ...f.fill, ...patch, extSched:f.sched, extTime:f.time, extVals:f.vals});   // 記下對方最新的值，同一次變更不會再提示；空白欄位一律補上
+      const keep = f.dateOnly ? {} : {extSched:f.sched, extTime:f.time, extVals:f.vals};   // 記下對方最新的值，同一次變更不會再提示；空白欄位一律補上
+      const base = {...f.c, ...f.fill, ...patch, ...keep};
+      if (f.pp && apply) await msApplyPostpone(base, f.pp);
+      else await saveCase(f.pp ? {...base, extPpSeen:f.pp.to ? f.pp.to.id : "pending"} : base);   // 不採用 Map-Scheduler 的延期：記下來，不再詢問
     }
     toast(`已更新 ${n} 件${msChgPending.length - n ? `，保留 ${msChgPending.length - n} 件` : ""}`);
   } catch(e){ writeFailed(e); }
@@ -2363,7 +2412,7 @@ async function msCheck(manual, list){
     lv = await msSyncLeaves();
   }
   if (!Array.isArray(list)) { msDot("warn"); if (manual) msStat("讀到的資料格式不對，請確認網址或檔案。", true); return; }
-  const {mine, fresh} = msDiff(list), changed = msChanges(mine);
+  const {mine, fresh} = msDiff(list), changed = msChanges(mine, list);
   S.msLastAt = new Date(); msDot("ok");
   const lvTxt = lv && (lv.add || lv.upd || lv.del) ? `休假／出差／上課：新增 ${lv.add}、更新 ${lv.upd}、移除 ${lv.del} 天` : "";
   let filled = 0;
@@ -2383,6 +2432,7 @@ async function msImport(sel, link){
     if (newTypes.length) { S.types = [...S.types, ...newTypes]; await saveLists(); }
     for (const f of sel) await saveCase({...f.c, extVals:msVals(f.c)});   // 記下匯入時看到的值，之後只比對對方的新變動
     for (const f of link) await saveCase({...f.dup, extId:f.x.id, extSrc:MS_SRC, extNo:f.c.extNo, extWord:f.c.extWord, extSched:f.c.sched, extTime:f.c.time});   // 已有同案號：只做對應，不改內容
+    await msRelink();
     toast(`已匯入 ${sel.length} 件新案件${link.length ? `，${link.length} 件對應到現有案件` : ""}${newTypes.length ? `；種類新增：${newTypes.join("、")}` : ""}`);
   } catch(e){ writeFailed(e); }
 }
