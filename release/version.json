@@ -1,9 +1,10 @@
 {
-  "version": "3.16.1",
+  "version": "3.16.2",
   "date": "2026-10-30",
-  "title": "種類「建物」「新建」統一為「建物保存」",
+  "title": "延期便簽改為二層決行格式",
   "items": [
-    "種類「建物」「新建」統一改為「建物保存」：既有案件、連件、常用資料的種類清單、Excel 匯入與 Map-Scheduler 同步都會轉換"
+    "延期便簽簽核欄上方加註「依分層負責規定授權單位主管二層決行」，簽核欄只留測量員、課長",
+    "便簽外框加粗"
   ],
   "download": "https://github.com/gn01918004-hub/work-paper/raw/main/release/survey-schedule.zip"
 }
