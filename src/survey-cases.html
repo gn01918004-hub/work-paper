@@ -858,12 +858,15 @@ tbody tr.insp:hover td{background:color-mix(in srgb,var(--lv-trip) 16%,var(--sur
 (() => {
 const BUILD = "artifact";
 const TEST_BUILD = false; /* 打包測試版時改為 true：使用獨立的資料，不影響正式版 */
-const VERSION = "3.15.0";
+const VERSION = "3.15.1";
 /* 離線版檢查更新：讀取 GitHub 公開倉庫的版本檔，新版本以 zip 提供下載 */
 const UPDATE_URL = "https://raw.githubusercontent.com/gn01918004-hub/work-paper/main/release/version.json";
 const DOWNLOAD_URL = "https://github.com/gn01918004-hub/work-paper/raw/main/release/survey-schedule.zip";
 /* 更新紀錄（與 CHANGELOG.md 同步）：第一筆為目前版本 */
 const CHANGELOG = [
+  {v:"3.15.1", date:"2026-10-30", title:"修正：特殊格式的舊法院案件也能拆開", items:[
+    "舊法院案件只有股別（例「民溫」）、字號後面有「字」（例「民信266字」）或字號含「-」（例「民睦504-955」）時，也能正確拆成股別與發文字號",
+  ]},
   {v:"3.15.0", date:"2026-10-30", title:"法院案件欄位、延期改進辦理情形、延期便簽", items:[
     "種類為法院、法院指界時，申請人欄位改為「法院」（可選苗栗地方法院、臺灣高等法院臺中分院），並多「股別」「發文字號」；顯示為「法院名稱/股別/發文字號」",
     "舊的法院案件自動拆開，例「民信674」→ 股別 民信、發文字號 674，法院填苗栗地方法院",
@@ -1043,7 +1046,7 @@ function norm(c){
   if (COURT_TYPES.has(c.type) && !c.courtDiv && !c.courtNo) {   // v3.15.0：舊的法院案件「民信674」拆成股別、發文字號；看不出法院的填苗栗地方法院
     const a = String(c.applicant || "").trim(), parts = a.split("/").map(x => x.trim());
     if (parts.length >= 2 && parts.length <= 3) { c.applicant = parts[0] || COURTS[0]; c.courtDiv = parts[1] || ""; c.courtNo = parts[2] || ""; }
-    else { const m = a.match(/^([^\d]+?)(\d+)$/); if (m && !/法院/.test(a)) { c.applicant = COURTS[0]; c.courtDiv = m[1]; c.courtNo = m[2]; } else if (!a) c.applicant = COURTS[0]; }
+    else { const m = a.match(/^([^\d]+?)(\d[\d-]*)?字?$/); if (m && !/法院/.test(a) && m[1].length <= 3) { c.applicant = COURTS[0]; c.courtDiv = m[1]; c.courtNo = m[2] || ""; } else if (!a) c.applicant = COURTS[0]; }   // 也認得「民溫」「民信266字」「民睦504-955」
   }
   if (!Array.isArray(c.inst)) c.inst = INST_OLD[c.inst] || (c.inst ? String(c.inst).split(/[、,，/\s]+/).filter(x => INSTS.includes(x)) : []);
   return c;

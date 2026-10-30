@@ -128,8 +128,8 @@ const COURT_TYPES = new Set(["法院", "法院指界"]);
 const appText = c => {
   if (!COURT_TYPES.has(c.type)) return c.applicant || "";
   if (c.courtDiv || c.courtNo) return [c.applicant, c.courtDiv, c.courtNo].filter(Boolean).join("/");
-  const m = String(c.applicant || "").match(/^([^\d]+?)(\d+)$/);   // 舊資料「民信674」
-  return m && !/法院/.test(c.applicant) ? `苗栗地方法院/${m[1]}/${m[2]}` : (c.applicant || "苗栗地方法院");
+  const m = String(c.applicant || "").match(/^([^\d]+?)(\d[\d-]*)?字?$/);   // 舊資料「民信674」「民溫」「民信266字」
+  return m && !/法院/.test(c.applicant) && m[1].length <= 3 ? ["苗栗地方法院", m[1], m[2]].filter(Boolean).join("/") : (c.applicant || "苗栗地方法院");
 };
 /* 電腦版 v3.14.0 起可自訂辦理情形；勾了「算結案」的也當結案 */
 const closed = c => CLOSED.has(c.status) || (D && (D.statuses || []).some(x => x && x.closed && x.name === c.status));
