@@ -198,7 +198,31 @@ tr.s-todo td:first-child{border-left-color:var(--line)}
 tr.s-stop td:first-child{border-left-color:var(--ink-3)}
 tr.over td:first-child{border-left-color:var(--crit)}
 tr.over td.dt{color:var(--crit)}
-tr.istoday td{background:var(--tape-soft)}
+/* 今天：不整行上色，改在日期欄放一個醒目的日期章；非 09:00、14:00 的時間再加強 */
+td.dt .dpill{display:inline-flex;flex-direction:column;align-items:flex-start;gap:1px;margin:-4px -8px;padding:4px 8px;border-radius:8px}
+tr.istoday td.dt .dpill{background:linear-gradient(135deg,var(--tape-soft),color-mix(in srgb,var(--tape) 22%,var(--surface)));box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--tape) 55%,transparent);color:var(--tape-ink)}
+tr.istoday td.dt .dpill::before{content:"今天";font-family:var(--f-ui);font-size:10.5px;font-weight:700;letter-spacing:.1em;color:#fff;background:var(--tape);border-radius:4px;padding:0 5px;align-self:flex-start;line-height:16px}
+tr.istoday td.dt .d > span{color:var(--tape-ink)}
+tr.istoday td.dt .tm.odd{display:inline-block;margin-top:2px;padding:1px 7px;border-radius:5px;background:var(--tape);color:#fff;font-weight:700;box-shadow:0 0 0 3px color-mix(in srgb,var(--tape) 22%,transparent)}
+tr.istoday td.dt .tm.odd::after{content:" 特別時段";font-family:var(--f-ui);font-size:10.5px;font-weight:600}
+/* 辦理情形整行底色：完成／撤回／駁回 淡綠、成圖 淡藍、補正 淡黃 */
+tr.tint-g td{background:color-mix(in srgb,var(--ok) 8%,var(--surface))}
+tr.tint-b td{background:color-mix(in srgb,#3b82f6 9%,var(--surface))}
+tr.tint-y td{background:color-mix(in srgb,#f5b800 13%,var(--surface))}
+tbody tr.tint-g:hover td{background:color-mix(in srgb,var(--ok) 15%,var(--surface))}
+tbody tr.tint-b:hover td{background:color-mix(in srgb,#3b82f6 16%,var(--surface))}
+tbody tr.tint-y:hover td{background:color-mix(in srgb,#f5b800 21%,var(--surface))}
+/* 欄位順序 */
+.colord{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.colord li{display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface);cursor:grab;user-select:none}
+.colord li.fixed{cursor:default;color:var(--ink-3);background:var(--surface-2)}
+.colord li.drag{opacity:.45}
+.colord li.over{box-shadow:0 -3px 0 var(--gnss)}
+.colord .gr{color:var(--ink-3);font-size:15px;line-height:1}
+.colord .n{font-family:var(--f-num);color:var(--ink-3);width:18px}
+.colord b{flex:1;font-weight:600}
+.colord .mv{border:1px solid var(--line);background:var(--surface-2);border-radius:6px;width:30px;height:28px;cursor:pointer;color:var(--ink-2)}
+.colord .mv:disabled{opacity:.35;cursor:default}
 .lv-off{--lv:var(--lv-off)} .lv-trip{--lv:var(--lv-trip)} .lv-class{--lv:var(--lv-class)}
 tr.leave td{color:var(--ink-2);background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--lv) 7%,transparent) 0 8px,color-mix(in srgb,var(--lv) 30%,transparent) 8px 9px)}
 tr.leave td:first-child{border-left-color:var(--lv)}
@@ -537,6 +561,7 @@ tbody tr.insp:hover td{background:color-mix(in srgb,var(--lv-trip) 16%,var(--sur
             <option value="">全部狀態</option><option value="__open">未結案</option><option value="__overdue">逾期未結</option><option value="__nonotice">通知未寄出</option><option>完成</option><option>補正</option><option>撤回</option><option>駁回</option><option>成圖</option><option>擴大檢測</option><option>現場抓點</option><option>詳備註</option><option>延期</option>
           </select>
           <label class="check"><input type="checkbox" id="fSlots" checked> 顯示空檔</label>
+          <button class="btn" type="button" id="btnCols" title="調整排程表欄位的順序">欄位順序</button>
         </div>
         <div class="card">
           <div class="mhead" id="mhead"></div>
@@ -544,7 +569,7 @@ tbody tr.insp:hover td{background:color-mix(in srgb,var(--lv-trip) 16%,var(--sur
             <div class="toolbar" id="unschedTools" style="padding:0 16px 10px"></div>
             <div class="tw"><table><tbody id="unschedRows"></tbody></table></div></details>
           <div class="tw sched" id="schedScroll"><table>
-            <thead><tr><th>排定日期／時間</th><th>種類</th><th>地段</th><th>地號</th><th>申請人</th><th>代理人</th><th>案件編號</th><th>收件</th><th>通知狀態</th><th>儀器</th><th>辦理情形</th><th>備註</th></tr></thead>
+            <thead><tr id="listHead"></tr></thead>
             <tbody id="rows"></tbody>
           </table></div>
           <div id="listEmpty" class="empty" hidden></div>
@@ -655,7 +680,7 @@ tbody tr.insp:hover td{background:color-mix(in srgb,var(--lv-trip) 16%,var(--sur
     <div class="f" data-for="case"><label for="cLot">地號</label><input class="in num" id="cLot" placeholder="例 878.879"></div>
     <div class="f" data-for="case"><label for="cApp">申請人</label><input class="in" id="cApp"></div>
     <div class="f" data-for="case"><label for="cAgent">代理人</label><input class="in" id="cAgent" list="dlAgents"><span class="hint" id="agentHint"></span></div>
-    <div class="f" data-for="case"><label for="cRecv">收件時間</label><input class="in num" type="date" id="cRecv"></div>
+    <div class="f" data-for="case"><label for="cRecv">收件日期</label><input class="in num" type="date" id="cRecv"></div>
     <div class="f" data-for="case"><label for="cNo">案件編號</label><div class="nofield"><input class="in num" id="cNo" inputmode="numeric"><button class="btn sm" type="button" id="addLink" title="加入連件">＋ 連件</button></div></div>
     <div class="f full" data-for="case" id="linkBox" hidden><span class="lb">連件（共用申請人、代理人、收件、排定日期時間、通知、儀器、辦理情形、備註）</span>
       <div class="lkbox"><div id="linkList"></div><div class="toolbar"><button class="btn sm" type="button" id="addLink2">＋ 再加一件</button><span class="lkhint">第 1 件為上方的主件；「拆件」會把該件變成獨立案件</span></div></div></div>
@@ -675,6 +700,15 @@ tbody tr.insp:hover td{background:color-mix(in srgb,var(--lv-trip) 16%,var(--sur
     <div class="toolbar"><button class="btn" type="button" id="dCancel">取消</button><button class="btn primary" type="button" id="dSave">儲存</button></div>
   </div>
 </aside>
+
+<div class="dialog vdlg" id="cdlg" hidden role="dialog" aria-labelledby="cTitle">
+  <div class="dr-h"><h2 id="cTitle">排程表欄位順序</h2><button class="btn sm" type="button" id="cClose">關閉 Esc</button></div>
+  <div class="card-b" style="gap:12px">
+    <span class="hint">按住拖動，或用 ↑ ↓ 調整；「排定日期／時間」固定在最左邊。調整後立即套用，會一起存進備份檔。</span>
+    <ol class="colord" id="colList"></ol>
+    <div class="toolbar"><button class="btn" type="button" id="colReset">還原預設順序</button><button class="btn primary" type="button" id="colDone">完成</button></div>
+  </div>
+</div>
 
 <div class="dialog vdlg" id="vdlg" hidden role="dialog" aria-labelledby="vTitle">
   <div class="dr-h"><h2 id="vTitle">版本更新紀錄</h2><button class="btn sm" type="button" id="vClose">關閉 Esc</button></div>
@@ -725,7 +759,7 @@ tbody tr.insp:hover td{background:color-mix(in srgb,var(--lv-trip) 16%,var(--sur
   <div class="card-b" style="gap:12px">
     <div id="msnHead" style="font-size:13px;color:var(--ink-2)"></div>
     <div class="tw" style="max-height:52vh;overflow:auto;border:1px solid var(--line);border-radius:10px"><table>
-      <thead><tr><th><input type="checkbox" id="msnAll" aria-label="全選" checked></th><th>排定日期／時間</th><th>種類</th><th>地段</th><th>地號</th><th>案件編號</th><th>收件</th><th>申請人</th><th>說明</th></tr></thead>
+      <thead><tr><th><input type="checkbox" id="msnAll" aria-label="全選" checked></th><th>排定日期／時間</th><th>種類</th><th>地段</th><th>地號</th><th>案件編號</th><th>收件日期</th><th>申請人</th><th>說明</th></tr></thead>
       <tbody id="msnRows"></tbody></table></div>
     <label class="check"><input type="checkbox" id="msnAuto"> 以後有新案件直接匯入，不再詢問</label>
   </div>
@@ -765,12 +799,19 @@ tbody tr.insp:hover td{background:color-mix(in srgb,var(--lv-trip) 16%,var(--sur
 (() => {
 const BUILD = "artifact";
 const TEST_BUILD = false; /* 打包測試版時改為 true：使用獨立的資料，不影響正式版 */
-const VERSION = "3.12.0";
+const VERSION = "3.13.0";
 /* 離線版檢查更新：讀取 GitHub 公開倉庫的版本檔，新版本以 zip 提供下載 */
 const UPDATE_URL = "https://raw.githubusercontent.com/gn01918004-hub/work-paper/main/release/version.json";
 const DOWNLOAD_URL = "https://github.com/gn01918004-hub/work-paper/raw/main/release/survey-schedule.zip";
 /* 更新紀錄（與 CHANGELOG.md 同步）：第一筆為目前版本 */
 const CHANGELOG = [
+  {v:"3.13.0", date:"2026-10-30", title:"排程表欄位可自訂順序、狀態整行上色、今天新標示", items:[
+    "排程表新增「欄位順序」按鈕：可拖動或用 ↑ ↓ 自己排欄位，隨時可還原預設",
+    "預設順序改為：種類、收件日期、案件編號、地段、地號、申請人、代理人…",
+    "「收件」欄位改名為「收件日期」",
+    "完成、撤回、駁回整行淡綠色，成圖淡藍色，補正淡黃色",
+    "今天的案件不再整行淡紅，改在排定日期欄顯示醒目的「今天」日期章；當天時間不是 09:00、14:00 的，時間會特別標示",
+  ]},
   {v:"3.12.0", date:"2026-10-29", title:"案件同步一併同步休假／出差／上課", items:[
     "案件同步時，一併把 Map-Scheduler 上這位測量員的休假、出差、上課帶進來（可在「案件同步」設定關閉）",
     "跨天的請假拆成每個工作日一筆；不是整天的，說明會加上時段（例 08:00~12:00）",
@@ -983,7 +1024,7 @@ function localLoad(){
   } catch(e){}
 }
 function localSave(){ try { localStorage.setItem(LS, JSON.stringify({cases:[...S.cases.values()], ...listsBody()})); } catch(e){ toast("瀏覽器儲存空間不足，請先下載備份"); } abSchedule(); }
-const listsBody = () => ({agents:S.agents, types:S.types, sections:S.sections, months:S.months, migrations:S.migrations, ms:S.ms, msSeen:S.msSeen});
+const listsBody = () => ({agents:S.agents, types:S.types, sections:S.sections, months:S.months, migrations:S.migrations, ms:S.ms, msSeen:S.msSeen, cols:S.cols});
 function applyLists(d){
   if (!d) return;
   if (d.agents) S.agents = d.agents.map(a => ({...a}));
@@ -992,6 +1033,7 @@ function applyLists(d){
   if (d.months) S.months = JSON.parse(JSON.stringify(d.months));
   if (d.migrations) S.migrations = [...d.migrations];
   if (d.ms) S.ms = {...d.ms};
+  if (Array.isArray(d.cols)) S.cols = [...d.cols];
   if (d.msSeen) S.msSeen = [...d.msSeen];
   rebuild();
 }
@@ -1281,29 +1323,52 @@ async function quickSet(sel){
   try { await saveCase(n); toast(sel.dataset.f === "notice" ? `通知狀態改為「${n.notice || "未設定"}」` : `儀器改為「${n.inst.join("＋") || "未設定"}」`); }
   catch(e){ writeFailed(e); }
 }
+/* 排程表欄位：使用者可調整順序（存在 S.cols，跟著常用資料與備份檔）。「排定日期／時間」固定第一欄 */
+const COLS = [
+  {k:"type", t:"種類"}, {k:"recv", t:"收件日期"}, {k:"no", t:"案件編號"}, {k:"sec", t:"地段"}, {k:"lot", t:"地號"},
+  {k:"applicant", t:"申請人"}, {k:"agent", t:"代理人"}, {k:"notice", t:"通知狀態"}, {k:"inst", t:"儀器"}, {k:"status", t:"辦理情形"}, {k:"note", t:"備註"},
+];
+const COLMAP = new Map(COLS.map(x => [x.k, x]));
+const colOrder = () => { const want = (S.cols || []).filter(k => COLMAP.has(k)); return [...want, ...COLS.map(x => x.k).filter(k => !want.includes(k))]; };
+function drawHead(){ $("#listHead").innerHTML = `<th>排定日期／時間</th>` + colOrder().map(k => `<th>${COLMAP.get(k).t}</th>`).join(""); }
+/* 依欄位順序組出一列；值為 null 的相鄰欄位合併成一格（colspan），合併格的內容放在 fill */
+function cellsHTML(map, fill = ""){
+  let out = "", run = 0, used = false;
+  const flush = () => { if (run) { out += `<td${run > 1 ? ` colspan="${run}"` : ""}>${used ? "" : fill}</td>`; used = true; run = 0; } };
+  for (const k of colOrder()) { const v = map[k]; if (v == null) { run++; continue; } flush(); out += v; }
+  flush();
+  return out;
+}
+const secCell = c => { const s = secOf(c); return `<td>${s ? `${esc(s.name)}<span class="sub">${esc(s.town)}・<span class="num">${esc(c.sec)}</span></span>` : c.sec ? `<span class="num">${esc(c.sec)}</span><span class="sub" style="color:var(--crit)">查無代碼</span>` : ""}</td>`; };
+const TINT = {"完成":"tint-g", "撤回":"tint-g", "駁回":"tint-g", "成圖":"tint-b", "補正":"tint-y"};
+const ODD_TIME = t => t && t !== "09:00" && t !== "14:00";
+const dateCell = c => `<td class="dt"><div class="dpill">${c.sched ? `<div class="d">${md(c.sched)}<span>週${dow(c.sched)}</span></div>${c.time ? `<small class="tm${c.sched === TODAY && !isLeave(c) && ODD_TIME(c.time) ? " odd" : ""}">${esc(c.time)}</small>` : ""}` : `<span>未排</span>`}</div></td>`;
+
 function rowHTML(c){
-  if (c.insp) { const r = c.ref, s = secOf(r);
-    return `<tr class="insp${c.sched === TODAY ? " istoday" : ""}" data-goto="${r.id}" data-d="${c.sched}" title="點一下前往原案件"><td class="dt">${md(c.sched)}<span>週${dow(c.sched)}</span>${c.time ? `<small class="tm">${esc(c.time)}</small>` : ""}</td>
-      <td><b>${esc(r.type)}</b><span class="lkb insp">現場抓點</span></td>
-      <td>${s ? `${esc(s.name)}<span class="sub">${esc(s.town)}・<span class="num">${esc(r.sec)}</span></span>` : esc(r.sec || "")}</td>
-      <td class="num">${esc(r.lot)}${lkChip(r)}</td><td>${esc(r.applicant)}</td><td>${esc(r.agent)}</td><td class="num">${esc(r.no)}</td>
-      <td colspan="5"><span class="plink">→ 前往原案件${r.sched ? `（原排定 ${md(r.sched)}${r.time ? " " + esc(r.time) : ""}）` : ""}</span></td></tr>`; }
-  const dcell = `<td class="dt">${c.sched ? `${md(c.sched)}<span>週${dow(c.sched)}</span>${c.time ? `<small class="tm">${esc(c.time)}</small>` : ""}` : `<span>未排</span>`}</td>`;
+  if (c.insp) { const r = c.ref;
+    return `<tr class="insp${c.sched === TODAY ? " istoday" : ""}" data-goto="${r.id}" data-d="${c.sched}" title="點一下前往原案件">${dateCell(c)}` + cellsHTML({
+      type:`<td><b>${esc(r.type)}</b><span class="lkb insp">現場抓點</span></td>`, sec:secCell(r), lot:`<td class="num">${esc(r.lot)}${lkChip(r)}</td>`,
+      applicant:`<td>${esc(r.applicant)}</td>`, agent:`<td>${esc(r.agent)}</td>`, no:`<td class="num">${esc(r.no)}</td>`,
+      recv:null, notice:null, inst:null, status:null, note:null,
+    }, `<span class="plink">→ 前往原案件${r.sched ? `（原排定 ${md(r.sched)}${r.time ? " " + esc(r.time) : ""}）` : ""}</span>`) + `</tr>`; }
+  const dcell = dateCell(c);
   if (c.slot) return `<tr class="slot${c.sched === TODAY ? " istoday" : ""}" data-slot="${c.sched}" data-d="${c.sched}">${dcell}<td colspan="11"><span class="plus">＋ 空檔</span>　點此排入案件${c.sched === TODAY ? "　（今天）" : ""}</td></tr>`;
   if (c.marker) return `<tr class="marker" data-slot="${c.sched}" data-d="${c.sched}">${dcell}<td colspan="11">今天　非工作日，點此可排入案件</td></tr>`;
-  if (isLeave(c)) return `<tr class="leave ${LEAVES[c.leaveType]}" data-id="${c.id}" data-d="${c.sched}">${dcell}<td colspan="9">${esc(c.reason || c.leaveType)}</td><td><span class="st lv">${esc(c.leaveType)}</span></td><td class="note">${esc(c.note)}</td></tr>`;
-  const s = secOf(c), sc = stClass(c);
-  return `<tr class="s-${sc==="over"?"todo":sc}${isOver(c)?" over":""}${c.sched === TODAY ? " istoday" : ""}" data-id="${c.id}" data-d="${c.sched||""}">${dcell}
-    <td><b>${esc(c.type)}</b>${lkN(c) ? `<span class="lkb">連件 ${lkN(c) + 1}</span>` : ""}</td>
-    <td>${s ? `${esc(s.name)}<span class="sub">${esc(s.town)}・<span class="num">${esc(c.sec)}</span></span>` : c.sec ? `<span class="num">${esc(c.sec)}</span><span class="sub" style="color:var(--crit)">查無代碼</span>` : ""}</td>
-    <td class="num">${esc(c.lot)}${lkChip(c)}</td><td>${esc(c.applicant)}</td><td>${esc(c.agent)}</td>
-    <td class="num">${esc(c.no)}${lkChip(c)}</td><td class="num">${md(c.recv)}</td>
-    <td>${noticeSel(c)}</td>
-    <td>${instSel(c)}</td>
-    <td><span class="st ${sc}">${esc(stText(c))}</span>${inspDate(c) ? `<small class="due">${md(inspDate(c))}${inspTime(c) ? " " + esc(inspTime(c)) : ""} 現場抓點</small>` : ""}${c.status === "補正" ? `<small class="due ${corrLevel(c)}">${corrDue(c) ? `${md(corrDue(c))} 到期・` : ""}${esc(corrText(c))}</small>` : ""}</td>
-    <td class="note">${ppLinks(c)}${esc(c.note)}</td></tr>`;
+  if (isLeave(c)) return `<tr class="leave ${LEAVES[c.leaveType]}" data-id="${c.id}" data-d="${c.sched}">${dcell}` + cellsHTML({
+    status:`<td><span class="st lv">${esc(c.leaveType)}</span></td>`, note:`<td class="note">${esc(c.note)}</td>`,
+  }, esc(c.reason || c.leaveType)) + `</tr>`;
+  const sc = stClass(c);
+  return `<tr class="s-${sc==="over"?"todo":sc}${isOver(c)?" over":""}${TINT[c.status] ? " " + TINT[c.status] : ""}${c.sched === TODAY ? " istoday" : ""}" data-id="${c.id}" data-d="${c.sched||""}">${dcell}` + cellsHTML({
+    type:`<td><b>${esc(c.type)}</b>${lkN(c) ? `<span class="lkb">連件 ${lkN(c) + 1}</span>` : ""}</td>`,
+    recv:`<td class="num">${md(c.recv)}</td>`, no:`<td class="num">${esc(c.no)}${lkChip(c)}</td>`, sec:secCell(c),
+    lot:`<td class="num">${esc(c.lot)}${lkChip(c)}</td>`, applicant:`<td>${esc(c.applicant)}</td>`, agent:`<td>${esc(c.agent)}</td>`,
+    notice:`<td>${noticeSel(c)}</td>`, inst:`<td>${instSel(c)}</td>`,
+    status:`<td><span class="st ${sc}">${esc(stText(c))}</span>${inspDate(c) ? `<small class="due">${md(inspDate(c))}${inspTime(c) ? " " + esc(inspTime(c)) : ""} 現場抓點</small>` : ""}${c.status === "補正" ? `<small class="due ${corrLevel(c)}">${corrDue(c) ? `${md(corrDue(c))} 到期・` : ""}${esc(corrText(c))}</small>` : ""}</td>`,
+    note:`<td class="note">${ppLinks(c)}${esc(c.note)}</td>`,
+  }) + `</tr>`;
 }
 function renderList(){
+  drawHead();
   if (!S.from) setRange(TODAY);
   const q = S.q.trim().toLowerCase(), F = filtering();
   const inRange = c => c.sched >= S.from && c.sched <= S.to;
@@ -2349,7 +2414,38 @@ $("#readout").onclick = e => {
   const code = $("#cSec").value.trim(); closeDrawer(); go("sec"); secFormReset(); $("#sCode").value = code; $("#sName").focus();
 };
 $("#dClose").onclick = closeDrawer; $("#dCancel").onclick = closeDrawer;
-$("#scrim").onclick = () => { closeDrawer(); closeMonth(); closeVer(); closeUpd(); closeAb(); closeMs(); closeMsNew(); closeMsChg(); };
+/* ---------- 欄位順序 ---------- */
+function drawCols(){
+  const ord = colOrder();
+  $("#colList").innerHTML = `<li class="fixed"><span class="gr">📌</span><span class="n">1</span><b>排定日期／時間</b><span style="font-size:12px">固定</span></li>` +
+    ord.map((k, i) => `<li draggable="true" data-k="${k}"><span class="gr" aria-hidden="true">⠿</span><span class="n">${i + 2}</span><b>${COLMAP.get(k).t}</b>
+      <button class="mv" type="button" data-mv="-1" aria-label="${COLMAP.get(k).t} 上移" ${i ? "" : "disabled"}>↑</button><button class="mv" type="button" data-mv="1" aria-label="${COLMAP.get(k).t} 下移" ${i < ord.length - 1 ? "" : "disabled"}>↓</button></li>`).join("");
+}
+async function setCols(ord){
+  S.cols = ord; drawCols(); if (S.view === "list") renderList();
+  try { await saveLists(); } catch(e){ writeFailed(e); }
+}
+function openCols(){ drawCols(); $("#scrim").hidden = false; $("#cdlg").hidden = false; $("#colDone").focus(); }
+function closeCols(){ if ($("#cdlg").hidden) return; $("#cdlg").hidden = true; if ($("#drawer").hidden && $("#mdlg").hidden) $("#scrim").hidden = true; $("#btnCols").focus(); }
+$("#btnCols").onclick = openCols; $("#cClose").onclick = closeCols; $("#colDone").onclick = closeCols;
+$("#colReset").onclick = () => { setCols(COLS.map(x => x.k)); toast("已還原預設欄位順序"); };
+$("#colList").onclick = e => {
+  const b = e.target.closest("[data-mv]"); if (!b) return;
+  const ord = colOrder(), k = b.closest("li").dataset.k, i = ord.indexOf(k), j = i + Number(b.dataset.mv);
+  if (j < 0 || j >= ord.length) return;
+  [ord[i], ord[j]] = [ord[j], ord[i]]; setCols(ord);
+  requestAnimationFrame(() => $(`#colList li[data-k="${k}"] [data-mv="${b.dataset.mv}"]`)?.focus());
+};
+let colDrag = null;
+$("#colList").addEventListener("dragstart", e => { const li = e.target.closest("li[data-k]"); if (!li) return; colDrag = li.dataset.k; li.classList.add("drag"); e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", colDrag); });
+$("#colList").addEventListener("dragover", e => { const li = e.target.closest("li[data-k]"); if (!colDrag || !li) return; e.preventDefault(); $("#colList").querySelectorAll(".over").forEach(x => x.classList.remove("over")); if (li.dataset.k !== colDrag) li.classList.add("over"); });
+$("#colList").addEventListener("dragend", () => { colDrag = null; $("#colList").querySelectorAll(".drag,.over").forEach(x => x.classList.remove("drag", "over")); });
+$("#colList").addEventListener("drop", e => {
+  e.preventDefault(); const li = e.target.closest("li[data-k]"); if (!colDrag || !li || li.dataset.k === colDrag) return;
+  const ord = colOrder().filter(k => k !== colDrag); ord.splice(ord.indexOf(li.dataset.k), 0, colDrag); setCols(ord);   // 放在目標的前面
+});
+
+$("#scrim").onclick = () => { closeDrawer(); closeMonth(); closeVer(); closeUpd(); closeAb(); closeMs(); closeMsNew(); closeMsChg(); closeCols(); };
 const VSEEN = "survey-version-seen", USKIP = "survey-update-skip";
 const vcmp = (a, b) => { const x = String(a).split(".").map(Number), y = String(b).split(".").map(Number); for (let i = 0; i < 3; i++) { const d = (x[i] || 0) - (y[i] || 0); if (d) return d; } return 0; };
 let updInfo = null;
@@ -2463,9 +2559,9 @@ $("#typeForm").onsubmit = async e => {
 $("#typeTags").onclick = async e => { const b = e.target.closest("[data-del-type]"); if (!b) return; S.types.splice(Number(b.dataset.delType), 1); try { await saveLists(); } catch(err){ writeFailed(err); } };
 
 document.addEventListener("keydown", e => {
-  if (e.key === "Escape") { if (!$("#mschg").hidden) closeMsChg(); else if (!$("#msnew").hidden) closeMsNew(); else if (!$("#msdlg").hidden) closeMs(); else if (!$("#adlg").hidden) closeAb(); else if (!$("#udlg").hidden) closeUpd(); else if (!$("#vdlg").hidden) closeVer(); else if (!$("#drawer").hidden) closeDrawer(); else if (!$("#mdlg").hidden) closeMonth(); return; }
+  if (e.key === "Escape") { if (!$("#cdlg").hidden) closeCols(); else if (!$("#mschg").hidden) closeMsChg(); else if (!$("#msnew").hidden) closeMsNew(); else if (!$("#msdlg").hidden) closeMs(); else if (!$("#adlg").hidden) closeAb(); else if (!$("#udlg").hidden) closeUpd(); else if (!$("#vdlg").hidden) closeVer(); else if (!$("#drawer").hidden) closeDrawer(); else if (!$("#mdlg").hidden) closeMonth(); return; }
   const typing = /INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName || "");
-  if (typing || e.metaKey || e.ctrlKey || e.altKey || !$("#drawer").hidden || !$("#mdlg").hidden || !$("#vdlg").hidden || !$("#udlg").hidden || !$("#adlg").hidden || !$("#msdlg").hidden || !$("#msnew").hidden || !$("#mschg").hidden) return;
+  if (typing || e.metaKey || e.ctrlKey || e.altKey || !$("#drawer").hidden || !$("#mdlg").hidden || !$("#vdlg").hidden || !$("#udlg").hidden || !$("#adlg").hidden || !$("#msdlg").hidden || !$("#msnew").hidden || !$("#mschg").hidden || !$("#cdlg").hidden) return;
   if (e.key === "n" || e.key === "N") { e.preventDefault(); openDrawer(null); }
   if (S.view === "list" && (e.key === "t" || e.key === "T")) { e.preventDefault(); backToToday(); return; }
   if (e.key === "/") { e.preventDefault(); if (S.view !== "list") go("list"); $("#q").focus(); }
