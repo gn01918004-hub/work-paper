@@ -223,6 +223,9 @@ tbody tr.tint:hover td{background:color-mix(in srgb,var(--tint) calc(var(--tint-
 .stlist .mv:disabled{opacity:.35;cursor:default}
 .stadd{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .stgrid button[data-tint]{border-left:4px solid var(--tint)}
+.chg{display:flex;gap:6px;align-items:baseline;white-space:nowrap}
+.chg + .chg{margin-top:3px}
+.chg .k{font-size:11px;font-weight:600;color:var(--ink-3);min-width:4em}
 .ppbar{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 .ppbar b{font-family:var(--f-num)}
 /* 延期便簽（A4） */
@@ -820,9 +823,9 @@ tbody tr.insp:hover td{background:color-mix(in srgb,var(--lv-trip) 16%,var(--sur
 </div>
 
 <div class="dialog vdlg" id="mschg" hidden role="dialog" aria-labelledby="mscTitle" style="width:min(820px,calc(100% - 32px))">
-  <div class="dr-h"><h2 id="mscTitle">Map-Scheduler 有案件改了日期或時間</h2><button class="btn sm" type="button" id="mscLater">稍後再說</button></div>
+  <div class="dr-h"><h2 id="mscTitle">Map-Scheduler 有案件資料變動</h2><button class="btn sm" type="button" id="mscLater">稍後再說</button></div>
   <div class="card-b" style="gap:12px">
-    <div style="font-size:13px;color:var(--ink-2)">以下案件在 Map-Scheduler 改了排定日期或時間。選「改成新的」會更新本系統的日期時間；選「保留目前」則維持不變，這次的變動之後不會再提示。</div>
+    <div style="font-size:13px;color:var(--ink-2)">以下案件在 Map-Scheduler 改了排定日期時間或其他資料（備註不比對）。選「改成新的」會更新本系統；選「保留目前」則維持不變，這次的變動之後不會再提示。本系統空白的欄位會直接補上。</div>
     <div class="tw" style="max-height:52vh;overflow:auto;border:1px solid var(--line);border-radius:10px"><table>
       <thead><tr><th>案件</th><th>案件編號</th><th>本系統目前</th><th>Map-Scheduler 新的</th><th><select class="cellsel" id="mscAll" aria-label="全部套用"><option value="apply">全部改成新的</option><option value="keep">全部保留</option></select></th></tr></thead>
       <tbody id="mscRows"></tbody></table></div>
@@ -858,12 +861,17 @@ tbody tr.insp:hover td{background:color-mix(in srgb,var(--lv-trip) 16%,var(--sur
 (() => {
 const BUILD = "artifact";
 const TEST_BUILD = false; /* 打包測試版時改為 true：使用獨立的資料，不影響正式版 */
-const VERSION = "3.15.2";
+const VERSION = "3.16.0";
 /* 離線版檢查更新：讀取 GitHub 公開倉庫的版本檔，新版本以 zip 提供下載 */
 const UPDATE_URL = "https://raw.githubusercontent.com/gn01918004-hub/work-paper/main/release/version.json";
 const DOWNLOAD_URL = "https://github.com/gn01918004-hub/work-paper/raw/main/release/survey-schedule.zip";
 /* 更新紀錄（與 CHANGELOG.md 同步）：第一筆為目前版本 */
 const CHANGELOG = [
+  {v:"3.16.0", date:"2026-10-30", title:"案件同步比對更多欄位", items:[
+    "已匯入的案件，除了日期時間，也會比對收件日期、收件字、案件編號、種類、段代碼、地號、申請人、股別、發文字號、代理人（備註不比對）",
+    "本系統空白、Map-Scheduler 有值的欄位（例如後來收件補上的收件日期、案號）會直接補上",
+    "兩邊都有值但不同的，跟日期變動一起列在比對視窗，逐件選「改成新的」或「保留目前」；保留後同一次變動不會再提示",
+  ]},
   {v:"3.15.2", date:"2026-10-30", title:"修正：舊資料不再提醒延期未排日期", items:[
     "排定日期在 2026 年以前、辦理情形為延期的舊資料（輸入格式造成），不再列入「尚未排定延期日期」的提醒與篩選",
   ]},
@@ -2206,6 +2214,10 @@ function msNo(x){
   }
   return {...msParseNo(x.caseNumber), full:x.caseNumber || "", word:""};
 }
+/* 同步比對的欄位（備註不比對）。extVals 記住上次從 Map-Scheduler 看到的值，同一次變動只處理一次 */
+const MS_FIELDS = [["recv","收件日期"], ["word","收件字"], ["no","案件編號"], ["type","種類"], ["sec","段代碼"], ["lot","地號"], ["applicant","申請人"], ["courtDiv","股別"], ["courtNo","發文字號"], ["agent","代理人"]];
+const msVals = c => Object.fromEntries(MS_FIELDS.map(([f]) => [f, String(c[f] ?? "").trim()]));
+const fieldTxt = (f, v) => !v ? "（空白）" : f === "recv" ? `${Number(v.slice(0,4)) - 1911}/${v.slice(5,7)}/${v.slice(8,10)}` : f === "sec" ? `${v}${secOf({sec:v}) ? " " + secOf({sec:v}).name : ""}` : v;
 function msToCase(x){
   const n = msNo(x), p = msParseParcel(x.landParcel), tm = msTime(x.scheduledTime);
   const notes = [x.notes || "", !p.ok && x.landParcel ? `地段地號：${x.landParcel}` : "", !tm && x.scheduledTime ? `排件時間：${x.scheduledTime}` : ""].filter(Boolean).join("／");
@@ -2231,25 +2243,46 @@ function msDiff(list){
   return {mine, fresh};
 }
 let msPending = [], msChgPending = [];
-/* 已匯入的案件，Map-Scheduler 那邊改了日期或時間 → 比對提示 */
+/* 已匯入的案件，Map-Scheduler 那邊改了資料 → 比對：
+   日期時間、或兩邊都有值但不同的欄位 → 提示讓使用者選；本系統空白、對方有值的欄位 → 直接補上（auto）。
+   對方清空的欄位不處理；使用者自己改過、對方沒再變動的欄位不提示（比對上次看到的值 extVals） */
 function msChanges(mine){
   const byExt = new Map();
   all().forEach(c => { if (c.extId && !isLeave(c) && c.status !== PP && c.status !== EXP) byExt.set(c.extId, c); });   // 延期、擴大檢測後以新的那筆為準
-  const out = [];
+  const out = [], auto = [];
   for (const x of mine) {
     const c = byExt.get(x.id); if (!c) continue;
-    const n = msToCase(x).c, oldS = c.extSched ?? c.sched ?? "", oldT = c.extTime ?? c.time ?? "";
-    if ((n.sched || "") !== oldS || (n.time || "") !== oldT) out.push({x, c, sched:n.sched, time:n.time});
+    const n = msToCase(x).c, nv = msVals(n), seen = c.extVals || {};
+    const oldS = c.extSched ?? c.sched ?? "", oldT = c.extTime ?? c.time ?? "";
+    const dateChanged = (n.sched || "") !== oldS || (n.time || "") !== oldT;
+    const fill = {}, fields = [];
+    for (const [f, label] of MS_FIELDS) {
+      const to = nv[f], cur = String(c[f] ?? "").trim();
+      if (!to || to === cur) continue;                   // 對方空白或兩邊一樣
+      if (seen[f] !== undefined && seen[f] === to) continue;   // 對方沒再變，本系統的值是使用者自己改的
+      if (!cur) fill[f] = to; else fields.push({f, label, from:cur, to});
+    }
+    const snapChanged = MS_FIELDS.some(([f]) => (seen[f] ?? null) !== nv[f]);
+    if (dateChanged || fields.length) out.push({x, c, sched:n.sched, time:n.time, dateChanged, fields, fill, vals:nv});
+    else if (Object.keys(fill).length || snapChanged) auto.push({c, fill, vals:nv});
   }
-  return out.sort((a,b) => (a.sched || "9").localeCompare(b.sched || "9"));
+  out.sort((a,b) => (a.sched || "9").localeCompare(b.sched || "9"));
+  return Object.assign(out, {auto});
+}
+/* 只需要補空白欄位、或只更新記錄的那幾件：直接存，不提示 */
+async function msAutoFill(auto){
+  let n = 0;
+  for (const a of auto) { const filled = Object.keys(a.fill).length; if (filled) n++; await saveCase({...a.c, ...a.fill, extVals:a.vals}); }
+  return n;
 }
 const whenTxt = (d, t) => d ? `${md(d)}（週${dow(d)}）${t ? " " + esc(t) : ""}` : "未排";
 function openMsChg(list){
   msChgPending = list;
-  $("#mscTitle").textContent = `Map-Scheduler 有 ${list.length} 件改了日期或時間`;
+  $("#mscTitle").textContent = `Map-Scheduler 有 ${list.length} 件資料變動`;
   $("#mscRows").innerHTML = list.map((f, i) => { const c = f.c, s = secOf(c);
+    const lines = [...(f.dateChanged ? [["排定", whenTxt(c.sched, c.time), whenTxt(f.sched, f.time)]] : []), ...f.fields.map(d => [d.label, esc(fieldTxt(d.f, d.from)), esc(fieldTxt(d.f, d.to))])];
     return `<tr><td><b>${esc(c.type)}</b><span class="sub">${esc(s ? s.name : c.sec || "")} ${esc(c.lot || "")}・${esc(appText(c))}</span></td><td class="num">${esc(c.no || "")}</td>
-      <td>${whenTxt(c.sched, c.time)}</td><td style="color:var(--gnss);font-weight:700">→ ${whenTxt(f.sched, f.time)}</td>
+      <td>${lines.map(([k, a]) => `<div class="chg"><span class="k">${k}</span>${a}</div>`).join("")}</td><td style="color:var(--gnss);font-weight:700">${lines.map(([k, , b]) => `<div class="chg"><span class="k">${k}</span>→ ${b}</div>`).join("")}</td>
       <td><select class="cellsel" data-i="${i}" aria-label="第 ${i + 1} 件"><option value="apply" selected>改成新的</option><option value="keep">保留目前</option></select></td></tr>`; }).join("");
   $("#scrim").hidden = false; $("#mschg").hidden = false; $("#mscGo").focus();
 }
@@ -2261,9 +2294,10 @@ async function mscGo(){
   try {
     for (const [i, f] of msChgPending.entries()) {
       const apply = pick[i] === "apply"; if (apply) n++;
-      await saveCase({...f.c, ...(apply ? {sched:f.sched, time:f.time} : {}), extSched:f.sched, extTime:f.time});   // 記下對方最新的日期時間，同一次變更不會再提示
+      const patch = apply ? {...(f.dateChanged ? {sched:f.sched, time:f.time} : {}), ...Object.fromEntries(f.fields.map(d => [d.f, d.to]))} : {};
+      await saveCase({...f.c, ...f.fill, ...patch, extSched:f.sched, extTime:f.time, extVals:f.vals});   // 記下對方最新的值，同一次變更不會再提示；空白欄位一律補上
     }
-    toast(`已更新 ${n} 件的日期時間${msChgPending.length - n ? `，保留 ${msChgPending.length - n} 件` : ""}`);
+    toast(`已更新 ${n} 件${msChgPending.length - n ? `，保留 ${msChgPending.length - n} 件` : ""}`);
   } catch(e){ writeFailed(e); }
   msChgPending = [];
 }
@@ -2318,10 +2352,13 @@ async function msCheck(manual, list){
   const {mine, fresh} = msDiff(list), changed = msChanges(mine);
   S.msLastAt = new Date(); msDot("ok");
   const lvTxt = lv && (lv.add || lv.upd || lv.del) ? `休假／出差／上課：新增 ${lv.add}、更新 ${lv.upd}、移除 ${lv.del} 天` : "";
-  msStat(`${cfg.surveyor} 在 Map-Scheduler 共 ${mine.length} 件，新案件 ${fresh.length} 件，日期時間有變動 ${changed.length} 件。${lvTxt ? lvTxt + "。" : ""}`);
+  let filled = 0;
+  if (S.canWrite && changed.auto.length) { try { filled = await msAutoFill(changed.auto); } catch(e){ writeFailed(e); } }
+  if (filled && !manual) toast(`已從 Map-Scheduler 補上 ${filled} 件的空白欄位（收件日期、案號等）`);
+  msStat(`${cfg.surveyor} 在 Map-Scheduler 共 ${mine.length} 件，新案件 ${fresh.length} 件，資料有變動 ${changed.length} 件${filled ? `，自動補上空白欄位 ${filled} 件` : ""}。${lvTxt ? lvTxt + "。" : ""}`);
   if (lvTxt && !manual) toast(`已同步${lvTxt}`);
   msChgPending = changed;
-  if (!fresh.length) { if (changed.length) { closeMs(); openMsChg(changed); } else if (manual) toast(lvTxt ? `沒有新案件；已同步${lvTxt}` : `${cfg.surveyor} 沒有新案件，也沒有變動`); return; }
+  if (!fresh.length) { if (changed.length) { closeMs(); openMsChg(changed); } else if (manual) toast([filled ? `補上 ${filled} 件的空白欄位` : "", lvTxt ? `已同步${lvTxt}` : ""].filter(Boolean).join("；") || `${cfg.surveyor} 沒有新案件，也沒有變動`); return; }
   if (cfg.auto) { await msImport(fresh.filter(f => !f.dup), fresh.filter(f => f.dup)); msAfterNew(); return; }
   openMsNew(fresh);
 }
@@ -2330,7 +2367,7 @@ async function msImport(sel, link){
   try {
     const newTypes = [...new Set(sel.map(f => f.c.type).filter(t => t && !S.types.includes(t)))];   // 種類對不上的，加進常用資料
     if (newTypes.length) { S.types = [...S.types, ...newTypes]; await saveLists(); }
-    for (const f of sel) await saveCase({...f.c});
+    for (const f of sel) await saveCase({...f.c, extVals:msVals(f.c)});   // 記下匯入時看到的值，之後只比對對方的新變動
     for (const f of link) await saveCase({...f.dup, extId:f.x.id, extSrc:MS_SRC, extNo:f.c.extNo, extWord:f.c.extWord, extSched:f.c.sched, extTime:f.c.time});   // 已有同案號：只做對應，不改內容
     toast(`已匯入 ${sel.length} 件新案件${link.length ? `，${link.length} 件對應到現有案件` : ""}${newTypes.length ? `；種類新增：${newTypes.join("、")}` : ""}`);
   } catch(e){ writeFailed(e); }
