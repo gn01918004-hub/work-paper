@@ -861,12 +861,15 @@ tbody tr.insp:hover td{background:color-mix(in srgb,var(--lv-trip) 16%,var(--sur
 (() => {
 const BUILD = "artifact";
 const TEST_BUILD = false; /* 打包測試版時改為 true：使用獨立的資料，不影響正式版 */
-const VERSION = "3.16.0";
+const VERSION = "3.16.1";
 /* 離線版檢查更新：讀取 GitHub 公開倉庫的版本檔，新版本以 zip 提供下載 */
 const UPDATE_URL = "https://raw.githubusercontent.com/gn01918004-hub/work-paper/main/release/version.json";
 const DOWNLOAD_URL = "https://github.com/gn01918004-hub/work-paper/raw/main/release/survey-schedule.zip";
 /* 更新紀錄（與 CHANGELOG.md 同步）：第一筆為目前版本 */
 const CHANGELOG = [
+  {v:"3.16.1", date:"2026-10-30", title:"種類「建物」「新建」統一為「建物保存」", items:[
+    "種類「建物」「新建」統一改為「建物保存」：既有案件、連件、常用資料的種類清單、Excel 匯入與 Map-Scheduler 同步都會轉換",
+  ]},
   {v:"3.16.0", date:"2026-10-30", title:"案件同步比對更多欄位", items:[
     "已匯入的案件，除了日期時間，也會比對收件日期、收件字、案件編號、種類、段代碼、地號、申請人、股別、發文字號、代理人（備註不比對）",
     "本系統空白、Map-Scheduler 有值的欄位（例如後來收件補上的收件日期、案號）會直接補上",
@@ -1016,7 +1019,10 @@ const CHANGELOG = [
 const SEED = null; /* 離線版打包時填入 data/seed.json（代理人通訊錄、種類、工作日等常用資料，不含案件），第一次開啟時載入 */
 
 /* ---------- 預設參考資料（來自「常用ID」工作表） ---------- */
-const DEFAULT_TYPES = ["鑑界","圖面分割","協助分割","現場分割","合併","新建","回復","滅失","基地號勘查","法院","界址調整","更正編定","再鑑定","自用住宅","地上權勘查","段界調整","預為分割","位置測量","門牌勘查","鑑界(協辦)"];
+/* 種類名稱統一：建物、新建 → 建物保存（舊資料、匯入、同步都會轉換） */
+const TYPE_ALIAS = {"建物":"建物保存", "新建":"建物保存"};
+const normType = t => TYPE_ALIAS[t] || t;
+const DEFAULT_TYPES = ["鑑界","圖面分割","協助分割","現場分割","合併","建物保存","回復","滅失","基地號勘查","法院","界址調整","更正編定","再鑑定","自用住宅","地上權勘查","段界調整","預為分割","位置測量","門牌勘查","鑑界(協辦)"];
 /* 辦理情形：可在常用資料增刪、排序、選強調色（S.statuses）。內建的有特別功能，不能刪除 */
 const SYS_STATUS = {"完成":"green", "補正":"yellow", "撤回":"green", "駁回":"green", "成圖":"blue", "擴大檢測":"", "現場抓點":"", "延期":"", "詳備註":""};
 const TINTS = {"":["無",""], green:["綠","#16a34a"], blue:["藍","#3b82f6"], yellow:["黃","#f5b800"], orange:["橘","#f97316"], red:["紅","#e11d48"], purple:["紫","#a855f7"], gray:["灰","#64748b"]};
@@ -1056,6 +1062,8 @@ function norm(c){
   if (c.kind === "leave") { if (!LEAVES[c.leaveType]) c.leaveType = LEAVES[c.status] ? c.status : leaveTypeOf(c.reason); c.status = c.leaveType; return c; }
   if (NOTICE_OLD[c.notice]) c.notice = NOTICE_OLD[c.notice];
   if (c.status === "檢測") c.status = "現場抓點";   // v3.10.0 改名
+  if (c.type) c.type = normType(c.type);              // v3.16.1 建物、新建 → 建物保存
+  if (Array.isArray(c.subs)) c.subs = c.subs.map(x => x && x.type ? {...x, type:normType(x.type)} : x);
   if (COURT_TYPES.has(c.type) && !c.courtDiv && !c.courtNo) {   // v3.15.0：舊的法院案件「民信674」拆成股別、發文字號；看不出法院的填苗栗地方法院
     const a = String(c.applicant || "").trim(), parts = a.split("/").map(x => x.trim());
     if (parts.length >= 2 && parts.length <= 3) { c.applicant = parts[0] || COURTS[0]; c.courtDiv = parts[1] || ""; c.courtNo = parts[2] || ""; }
@@ -1143,7 +1151,7 @@ const listsBody = () => ({agents:S.agents, types:S.types, sections:S.sections, m
 function applyLists(d){
   if (!d) return;
   if (d.agents) S.agents = d.agents.map(a => ({...a}));
-  if (d.types && d.types.length) S.types = [...d.types];
+  if (d.types && d.types.length) S.types = [...new Set(d.types.map(normType))];
   if (d.sections && d.sections.length) S.sections = d.sections.map(s => ({...s}));
   if (d.months) S.months = JSON.parse(JSON.stringify(d.months));
   if (d.migrations) S.migrations = [...d.migrations];
@@ -2222,7 +2230,7 @@ function msToCase(x){
   const n = msNo(x), p = msParseParcel(x.landParcel), tm = msTime(x.scheduledTime);
   const notes = [x.notes || "", !p.ok && x.landParcel ? `地段地號：${x.landParcel}` : "", !tm && x.scheduledTime ? `排件時間：${x.scheduledTime}` : ""].filter(Boolean).join("／");
   const sched = /^\d{4}-\d{2}-\d{2}$/.test(x.surveyDate || "") ? x.surveyDate : "";
-  return {c:{kind:"case", type:x.caseType || "", sched, time:tm, extSched:sched, extTime:tm, recv:n.recv, no:n.no,
+  return {c:{kind:"case", type:normType(x.caseType || ""), sched, time:tm, extSched:sched, extTime:tm, recv:n.recv, no:n.no,
       sec:p.sec, lot:p.lot, applicant:x.owner || "", courtDiv:x.courtDivision || "", courtNo:x.courtDocNo || "", word:x.receiveWord || "",
       agent:x.agent || "", notice:"", inst:[], status:"", note:notes,
       extId:x.id, extSrc:MS_SRC, extNo:n.full, extWord:n.word, surveyor:x.surveyor || ""},
