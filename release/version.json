@@ -1,12 +1,10 @@
 {
-  "version": "3.17.0",
+  "version": "3.18.0",
   "date": "2026-10-30",
-  "title": "同步 Map-Scheduler 的延期",
+  "title": "同步 Map-Scheduler 的連件",
   "items": [
-    "Map-Scheduler 新增延期功能後，案件同步會一併讀取延期狀態、延期理由與延期後的新案件",
-    "已匯入的案件在 Map-Scheduler 延期時，列在比對視窗（例「辦理情形：待辦 → 延期 至 11/12・當日下雨」）；選「改成新的」會在本系統延期並建立新案件，兩筆互相連結",
-    "Map-Scheduler 延期但還沒排日期的，套用後在本系統也是「延期・未排日期」；之後對方排了日期，會再提示建立新案件",
-    "新匯入的延期案件與新案件會自動連結；本系統先延期、之後對方也延期的，會自動對應到對方的新案件，不會重複"
+    "配合 Map-Scheduler 新增的連件功能，案件同步會一併帶入連件（案件編號、種類、地段、地號）",
+    "已匯入的案件在 Map-Scheduler 加了或改了連件：本系統沒有連件的直接補上，兩邊不同時列在比對視窗讓你選"
   ],
   "download": "https://github.com/gn01918004-hub/work-paper/raw/main/release/survey-schedule.zip"
 }

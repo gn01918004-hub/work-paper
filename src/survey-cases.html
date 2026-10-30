@@ -862,12 +862,16 @@ tbody tr.insp:hover td{background:color-mix(in srgb,var(--lv-trip) 16%,var(--sur
 (() => {
 const BUILD = "artifact";
 const TEST_BUILD = false; /* 打包測試版時改為 true：使用獨立的資料，不影響正式版 */
-const VERSION = "3.17.0";
+const VERSION = "3.18.0";
 /* 離線版檢查更新：讀取 GitHub 公開倉庫的版本檔，新版本以 zip 提供下載 */
 const UPDATE_URL = "https://raw.githubusercontent.com/gn01918004-hub/work-paper/main/release/version.json";
 const DOWNLOAD_URL = "https://github.com/gn01918004-hub/work-paper/raw/main/release/survey-schedule.zip";
 /* 更新紀錄（與 CHANGELOG.md 同步）：第一筆為目前版本 */
 const CHANGELOG = [
+  {v:"3.18.0", date:"2026-10-30", title:"同步 Map-Scheduler 的連件", items:[
+    "配合 Map-Scheduler 新增的連件功能，案件同步會一併帶入連件（案件編號、種類、地段、地號）",
+    "已匯入的案件在 Map-Scheduler 加了或改了連件：本系統沒有連件的直接補上，兩邊不同時列在比對視窗讓你選",
+  ]},
   {v:"3.17.0", date:"2026-10-30", title:"同步 Map-Scheduler 的延期", items:[
     "Map-Scheduler 新增延期功能後，案件同步會一併讀取延期狀態、延期理由與延期後的新案件",
     "已匯入的案件在 Map-Scheduler 延期時，列在比對視窗（例「辦理情形：待辦 → 延期 至 11/12・當日下雨」）；選「改成新的」會在本系統延期並建立新案件，兩筆互相連結",
@@ -2235,9 +2239,13 @@ function msNo(x){
   return {...msParseNo(x.caseNumber), full:x.caseNumber || "", word:""};
 }
 /* 同步比對的欄位（備註不比對）。extVals 記住上次從 Map-Scheduler 看到的值，同一次變動只處理一次 */
-const MS_FIELDS = [["recv","收件日期"], ["word","收件字"], ["no","案件編號"], ["type","種類"], ["sec","段代碼"], ["lot","地號"], ["applicant","申請人"], ["courtDiv","股別"], ["courtNo","發文字號"], ["agent","代理人"]];
-const msVals = c => Object.fromEntries(MS_FIELDS.map(([f]) => [f, String(c[f] ?? "").trim()]));
-const fieldTxt = (f, v) => !v ? "（空白）" : f === "recv" ? `${Number(v.slice(0,4)) - 1911}/${v.slice(5,7)}/${v.slice(8,10)}` : f === "sec" ? `${v}${secOf({sec:v}) ? " " + secOf({sec:v}).name : ""}` : v;
+const MS_FIELDS = [["recv","收件日期"], ["word","收件字"], ["no","案件編號"], ["type","種類"], ["sec","段代碼"], ["lot","地號"], ["applicant","申請人"], ["courtDiv","股別"], ["courtNo","發文字號"], ["agent","代理人"], ["subs","連件"]];
+/* 連件以「案號|種類|段代碼|地號」組成的字串比對；沒有連件為空字串 */
+const subsKey = c => { const l = subsOf(c).map(x => [x.no || "", normType(x.type || ""), x.sec || "", x.lot || ""].join("|")); return l.length ? l.join("；") : ""; };
+const keySubs = k => k ? k.split("；").map(t => { const [no, type, sec, lot] = t.split("|"); return {no, type, sec, lot}; }) : [];
+const msVals = c => Object.fromEntries(MS_FIELDS.map(([f]) => [f, f === "subs" ? subsKey(c) : String(c[f] ?? "").trim()]));
+const msFieldVal = (f, v) => f === "subs" ? keySubs(v) : v;
+const fieldTxt = (f, v) => !v ? "（空白）" : f === "subs" ? keySubs(v).map(x => `${x.no || ""} ${secOf({sec:x.sec})?.name || x.sec || ""}${x.lot || ""}`.trim()).join("、") : f === "recv" ? `${Number(v.slice(0,4)) - 1911}/${v.slice(5,7)}/${v.slice(8,10)}` : f === "sec" ? `${v}${secOf({sec:v}) ? " " + secOf({sec:v}).name : ""}` : v;
 function msToCase(x){
   const n = msNo(x), p = msParseParcel(x.landParcel), tm = msTime(x.scheduledTime);
   const notes = [x.notes || "", !p.ok && x.landParcel ? `地段地號：${x.landParcel}` : "", !tm && x.scheduledTime ? `排件時間：${x.scheduledTime}` : ""].filter(Boolean).join("／");
@@ -2246,7 +2254,9 @@ function msToCase(x){
       sec:p.sec, lot:p.lot, applicant:x.owner || "", courtDiv:x.courtDivision || "", courtNo:x.courtDocNo || "", word:x.receiveWord || "",
       agent:x.agent || "", notice:"", inst:[], status:"", note:notes,
       extId:x.id, extSrc:MS_SRC, extNo:n.full, extWord:n.word, surveyor:x.surveyor || "",
-      ...(x.status === PP ? {status:PP, ppReason:x.postponeReason || "", extPpTo:x.postponedToId || ""} : {})},
+      ...(x.status === PP ? {status:PP, ppReason:x.postponeReason || "", extPpTo:x.postponedToId || ""} : {}),
+      ...(Array.isArray(x.subs) && x.subs.length ? {subs:x.subs.filter(y => y && (y.caseNumber || y.landParcel)).map(y => { const q = msParseParcel(y.landParcel);   // Map-Scheduler v2.17.0 連件
+        return {no:String(y.caseNumber || "").trim(), type:normType(y.caseType || ""), sec:q.sec, lot:q.ok ? q.lot : String(y.landParcel || "")}; })} : {})},
     warn:[!n.ok && x.caseNumber ? "案號格式不同，原樣放入案件編號" : "", !p.ok && x.landParcel ? "找不到地段，原文放在備註" : "",
       p.ambiguous ? `「${x.landParcel}」有同名地段，已選${SECMAP.get(p.sec)?.town || ""}，請確認` : "", !tm && x.scheduledTime ? "時間格式不同，原文放在備註" : ""].filter(Boolean)};
 }
@@ -2292,10 +2302,10 @@ function msChanges(mine, list = mine){
     const dateChanged = (n.sched || "") !== oldS || (n.time || "") !== oldT;
     const fill = {}, fields = [];
     for (const [f, label] of MS_FIELDS) {
-      const to = nv[f], cur = String(c[f] ?? "").trim();
+      const to = nv[f], cur = f === "subs" ? subsKey(c) : String(c[f] ?? "").trim();
       if (!to || to === cur) continue;                   // 對方空白或兩邊一樣
       if (seen[f] !== undefined && seen[f] === to) continue;   // 對方沒再變，本系統的值是使用者自己改的
-      if (!cur) fill[f] = to; else fields.push({f, label, from:cur, to});
+      if (!cur) fill[f] = msFieldVal(f, to); else fields.push({f, label, from:cur, to});
     }
     const snapChanged = MS_FIELDS.some(([f]) => (seen[f] ?? null) !== nv[f]);
     if (dateChanged || fields.length || pp) out.push({x, c, sched:n.sched, time:n.time, dateChanged, fields, fill, vals:nv, pp});
@@ -2354,7 +2364,7 @@ async function mscGo(){
   try {
     for (const [i, f] of msChgPending.entries()) {
       const apply = pick[i] === "apply"; if (apply) n++;
-      const patch = apply ? {...(f.dateChanged ? {sched:f.sched, time:f.time} : {}), ...Object.fromEntries(f.fields.map(d => [d.f, d.to]))} : {};
+      const patch = apply ? {...(f.dateChanged ? {sched:f.sched, time:f.time} : {}), ...Object.fromEntries(f.fields.map(d => [d.f, msFieldVal(d.f, d.to)]))} : {};
       const keep = f.dateOnly ? {} : {extSched:f.sched, extTime:f.time, extVals:f.vals};   // 記下對方最新的值，同一次變更不會再提示；空白欄位一律補上
       const base = {...f.c, ...f.fill, ...patch, ...keep};
       if (f.pp && apply) await msApplyPostpone(base, f.pp);
