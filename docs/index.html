@@ -142,7 +142,7 @@ const level = c => {
 const stText = c => {
   if (c.status === "補正") { const L = corrLeft(c); return L === null ? "補正" : L > 0 ? `補正・剩 ${L} 天` : L === 0 ? "補正・今天到期" : L >= -2 ? "補正・寬限中" : `補正・逾期 ${-L - 2} 天`; }
   if (c.sched && c.sched < TODAY && !closed(c)) return c.status ? `${c.status}・逾期` : "逾期未結";
-  if (c.status === "延期" && !c.postponedTo) return "延期・未排日期";
+  if (c.status === "延期" && !c.postponedTo && !(c.sched && c.sched < "2026-01-01")) return "延期・未排日期";   // 2026 年以前的是舊資料，不提醒
   return c.status || "未辦理";
 };
 /* 代理人電話：本地號碼補上苗栗區碼 037，手機原樣 */

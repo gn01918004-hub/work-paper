@@ -858,12 +858,15 @@ tbody tr.insp:hover td{background:color-mix(in srgb,var(--lv-trip) 16%,var(--sur
 (() => {
 const BUILD = "artifact";
 const TEST_BUILD = false; /* 打包測試版時改為 true：使用獨立的資料，不影響正式版 */
-const VERSION = "3.15.1";
+const VERSION = "3.15.2";
 /* 離線版檢查更新：讀取 GitHub 公開倉庫的版本檔，新版本以 zip 提供下載 */
 const UPDATE_URL = "https://raw.githubusercontent.com/gn01918004-hub/work-paper/main/release/version.json";
 const DOWNLOAD_URL = "https://github.com/gn01918004-hub/work-paper/raw/main/release/survey-schedule.zip";
 /* 更新紀錄（與 CHANGELOG.md 同步）：第一筆為目前版本 */
 const CHANGELOG = [
+  {v:"3.15.2", date:"2026-10-30", title:"修正：舊資料不再提醒延期未排日期", items:[
+    "排定日期在 2026 年以前、辦理情形為延期的舊資料（輸入格式造成），不再列入「尚未排定延期日期」的提醒與篩選",
+  ]},
   {v:"3.15.1", date:"2026-10-30", title:"修正：特殊格式的舊法院案件也能拆開", items:[
     "舊法院案件只有股別（例「民溫」）、字號後面有「字」（例「民信266字」）或字號含「-」（例「民睦504-955」）時，也能正確拆成股別與發文字號",
   ]},
@@ -1028,7 +1031,9 @@ const isCourt = c => COURT_TYPES.has(c && c.type);
 const appText = c => isCourt(c) ? [c.applicant, c.courtDiv, c.courtNo].filter(Boolean).join("/") : (c.applicant || "");
 /* 延期：辦理情形選「延期」，可先不排日期（會提醒）；延期理由預設三種，也可自行輸入 */
 const PP_REASONS = ["當日下雨", "案情複雜需擴大檢測", "現場會勘時間過長"];
-const ppPending = c => c.status === PP && !c.postponedTo && !isLeave(c);
+/* 2026 年以前的「延期」是舊資料輸入格式造成的，不算未排延期日期 */
+const PP_SINCE = "2026-01-01";
+const ppPending = c => c.status === PP && !c.postponedTo && !isLeave(c) && !(c.sched && c.sched < PP_SINCE);
 const STAMPED = new Set(["完成","補正","駁回","撤回"]); /* 選這些辦理情形時，自動把當下日期時間寫入備註 */
 const STAMP_RE = /^【(完成|補正|駁回|撤回) [^】]*】\n?/;
 const DONE = new Set(["完成"]), STOPPED = new Set(["撤回","駁回"]);
