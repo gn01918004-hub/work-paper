@@ -223,6 +223,34 @@ tbody tr.tint:hover td{background:color-mix(in srgb,var(--tint) calc(var(--tint-
 .stlist .mv:disabled{opacity:.35;cursor:default}
 .stadd{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .stgrid button[data-tint]{border-left:4px solid var(--tint)}
+.ppbar{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.ppbar b{font-family:var(--f-num)}
+/* 延期便簽（A4） */
+.notedlg{z-index:22;width:min(900px,96vw);max-height:94vh;display:flex;flex-direction:column}
+.note-scroll{overflow:auto;background:#d9dde3;padding:18px;flex:1;min-height:0}
+.note-tip{font-size:12px;color:var(--ink-3);padding:8px 16px}
+.a4{width:210mm;min-height:297mm;margin:0 auto;background:#fff;color:#000;box-shadow:0 2px 12px rgb(0 0 0 / .25);padding:22mm 20mm;box-sizing:border-box;font-family:"DFKai-SB","BiauKai","標楷體","Kaiti TC","STKaiti","Noto Serif TC",serif}
+.a4 .box{border:1.5px solid #000}
+.a4 .hd{font-size:22pt;letter-spacing:.3em;padding:6mm 7mm 3mm}
+.a4 .bd{font-size:15pt;line-height:2.15;padding:0 7mm 8mm;text-align:justify;min-height:120mm}
+.a4 .bd p{margin:0}
+.a4 .bd .ok{margin-top:4mm}
+.a4 .v{font-weight:700;padding:0 1px}
+.a4 .bl{display:inline-block;min-width:2.2em;border-bottom:1px solid #000;line-height:1.4}
+.a4 .bl.w{min-width:5em}
+.a4 table.sign{width:100%;border-collapse:collapse;table-layout:fixed}
+.a4 table.sign th,.a4 table.sign td{border:0!important;border-top:1.5px solid #000!important;border-right:1.5px solid #000!important;font-size:14pt!important;font-weight:400!important;line-height:1.6!important;font-family:inherit!important;text-align:center!important;padding:2.5mm!important;color:#000!important;background:#fff!important;letter-spacing:.3em!important;white-space:nowrap}
+.a4 table.sign tr > :last-child{border-right:0!important}
+.a4 table.sign tbody td{height:34mm}
+.a4 .meta{margin-top:6mm;font-size:10pt;color:#555;font-family:var(--f-ui)}
+#printRoot{display:none}
+@media print{
+  @page{size:A4;margin:0}
+  html,body{background:#fff!important}
+  body > *:not(#printRoot){display:none!important}
+  #printRoot{display:block!important}
+  #printRoot .a4{box-shadow:none;margin:0}
+}
 .colord{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
 .colord li{display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface);cursor:grab;user-select:none}
 .colord li.fixed{cursor:default;color:var(--ink-3);background:var(--surface-2)}
@@ -536,6 +564,7 @@ tbody tr.insp:hover td{background:color-mix(in srgb,var(--lv-trip) 16%,var(--sur
 
     <div class="content">
       <div class="banner" id="banner" hidden></div>
+      <div class="banner ppbar" id="ppAlert" hidden></div>
 
       <!-- 總覽 -->
       <section class="view" id="view-dash">
@@ -674,7 +703,7 @@ tbody tr.insp:hover td{background:color-mix(in srgb,var(--lv-trip) 16%,var(--sur
   </main>
 </div>
 
-<datalist id="dlAgents"></datalist>
+<datalist id="dlAgents"></datalist><datalist id="dlCourts"></datalist><datalist id="dlPpReasons"></datalist><datalist id="dlWords"><option value="80通數土"><option value="81通圖土"><option value="82通建"></datalist>
 <datalist id="dlSections"></datalist>
 <datalist id="dlTowns"></datalist>
 
@@ -685,12 +714,6 @@ tbody tr.insp:hover td{background:color-mix(in srgb,var(--lv-trip) 16%,var(--sur
   <div class="readout" id="readout"></div>
   <form class="dr-b" id="caseForm" autocomplete="off">
     <div class="linkrow" id="linkRow" hidden></div>
-    <div class="pp-panel" id="ppPanel" hidden>
-      <div class="f full"><span class="lb" style="color:var(--warn)">延期到新的日期與時間</span><span class="hint">原案件會改成「延期」並連結到新案件；新案件的通知狀態會設為「未寄出」。</span></div>
-      <div class="f"><label for="ppDate">新日期</label><input class="in num" type="date" id="ppDate"></div>
-      <div class="f"><label for="ppTime">新時間</label><input class="in num" type="time" id="ppTime"><div class="qt" data-qt="ppTime"><button type="button" data-t="09:00">上午9點</button><button type="button" data-t="14:00">下午14點</button></div></div>
-      <div class="f full"><div class="toolbar"><button class="btn primary" type="button" id="ppGo">確認延期</button><button class="btn" type="button" id="ppCancel">取消</button></div></div>
-    </div>
     <div class="f full" id="kindRow"><span class="lb">類別</span>
       <div class="seg" id="kindSeg"><button type="button" data-kind="case" aria-pressed="true">測量案件</button><button type="button" data-kind="leave" aria-pressed="false">休假／出差／上課</button></div>
     </div>
@@ -701,9 +724,12 @@ tbody tr.insp:hover td{background:color-mix(in srgb,var(--lv-trip) 16%,var(--sur
     <div class="f" data-for="case"><label for="cType">種類</label><select class="in" id="cType" style="width:100%"></select></div>
     <div class="f" data-for="case"><label for="cSec">段代碼</label><input class="in num" id="cSec" list="dlSections" inputmode="numeric" placeholder="例 1103"></div>
     <div class="f" data-for="case"><label for="cLot">地號</label><input class="in num" id="cLot" placeholder="例 878.879"></div>
-    <div class="f" data-for="case"><label for="cApp">申請人</label><input class="in" id="cApp"></div>
+    <div class="f" data-for="case"><label for="cApp" id="cAppLbl">申請人</label><input class="in" id="cApp"></div>
     <div class="f" data-for="case"><label for="cAgent">代理人</label><input class="in" id="cAgent" list="dlAgents"><span class="hint" id="agentHint"></span></div>
+    <div class="f" data-for="case" data-court hidden><label for="cCourtDiv">股別</label><input class="in" id="cCourtDiv" placeholder="例 民信"></div>
+    <div class="f" data-for="case" data-court hidden><label for="cCourtNo">發文字號</label><input class="in num" id="cCourtNo" placeholder="例 674"></div>
     <div class="f" data-for="case"><label for="cRecv">收件日期</label><input class="in num" type="date" id="cRecv"></div>
+    <div class="f" data-for="case"><label for="cWord">收件字</label><input class="in" id="cWord" list="dlWords" placeholder="輸入 81 或從清單選擇" autocomplete="off"></div>
     <div class="f" data-for="case"><label for="cNo">案件編號</label><div class="nofield"><input class="in num" id="cNo" inputmode="numeric"><button class="btn sm" type="button" id="addLink" title="加入連件">＋ 連件</button></div></div>
     <div class="f full" data-for="case" id="linkBox" hidden><span class="lb">連件（共用申請人、代理人、收件、排定日期時間、通知、儀器、辦理情形、備註）</span>
       <div class="lkbox"><div id="linkList"></div><div class="toolbar"><button class="btn sm" type="button" id="addLink2">＋ 再加一件</button><span class="lkhint">第 1 件為上方的主件；「拆件」會把該件變成獨立案件</span></div></div></div>
@@ -714,12 +740,16 @@ tbody tr.insp:hover td{background:color-mix(in srgb,var(--lv-trip) 16%,var(--sur
     <div class="f" data-for="case" data-st="現場抓點" hidden><label for="cInspTime">現場抓點時間</label><input class="in num" type="time" id="cInspTime"><div class="qt" data-qt="cInspTime"><button type="button" data-t="09:00">上午9點</button><button type="button" data-t="14:00">下午14點</button></div></div>
     <div class="f" data-for="case" data-st="擴大檢測" hidden><label for="cExpDate">擴大檢測日期</label><input class="in num" type="date" id="cExpDate"><span class="hint">原案件留作紀錄，另複製一筆到新日期</span></div>
     <div class="f" data-for="case" data-st="擴大檢測" hidden><label for="cExpTime">擴大檢測時間</label><input class="in num" type="time" id="cExpTime"><div class="qt" data-qt="cExpTime"><button type="button" data-t="09:00">上午9點</button><button type="button" data-t="14:00">下午14點</button></div></div>
+    <div class="f full" data-for="case" data-st="延期" hidden><label for="cPpReason">延期理由</label><input class="in" id="cPpReason" list="dlPpReasons" placeholder="選擇或輸入，例 當日下雨" autocomplete="off"></div>
+    <div class="f" data-for="case" data-st="延期" data-pp-date hidden><label for="cPpDate">延期日期（可先不填）</label><input class="in num" type="date" id="cPpDate"><span class="hint">不填的話會提醒「尚未排定延期日期」</span></div>
+    <div class="f" data-for="case" data-st="延期" data-pp-date hidden><label for="cPpTime">延期時間</label><input class="in num" type="time" id="cPpTime"><div class="qt" data-qt="cPpTime"><button type="button" data-t="09:00">上午9點</button><button type="button" data-t="14:00">下午14點</button></div></div>
+    <div class="f full" data-for="case" data-st="延期" hidden><div class="toolbar"><button class="btn" type="button" id="btnNote">📄 產生延期便簽（A4）</button><span class="hint">依目前填的內容產生，可直接列印呈核</span></div></div>
     <div class="f" data-for="case" id="stampRow" hidden><label for="cStampAt" id="stampLbl">辦理時間（會寫入備註，可修改）</label><input class="in num" type="datetime-local" id="cStampAt"><div class="qt" data-qt="cStampAt"><button type="button" data-t="09:00">上午9點</button><button type="button" data-t="14:00">下午14點</button></div><span class="hint" id="corrInfo" hidden></span></div>
     <div class="f full" data-for="leave"><label for="cReason">說明</label><input class="in" id="cReason" placeholder="例 特休、選舉講習、縣府上課"></div>
     <div class="f full"><label for="cNote">備註</label><textarea class="in" id="cNote" rows="3"></textarea></div>
   </form>
   <div class="dr-f">
-    <div class="toolbar"><span id="delWrap"></span><button class="btn" type="button" id="dPostpone" hidden>延期…</button></div>
+    <div class="toolbar"><span id="delWrap"></span></div>
     <div class="toolbar"><button class="btn" type="button" id="dCancel">取消</button><button class="btn primary" type="button" id="dSave">儲存</button></div>
   </div>
 </aside>
@@ -817,17 +847,31 @@ tbody tr.insp:hover td{background:color-mix(in srgb,var(--lv-trip) 16%,var(--sur
 </div>
 
 <div class="toast" id="toast" hidden></div>
+<div class="dialog notedlg" id="notedlg" hidden role="dialog" aria-labelledby="noteTitle">
+  <div class="dr-h"><h2 id="noteTitle">延期便簽預覽</h2><div class="toolbar"><button class="btn primary" type="button" id="notePrint">🖨 列印／存成 PDF</button><button class="btn sm" type="button" id="noteClose">關閉 Esc</button></div></div>
+  <div class="note-scroll"><div class="a4" id="noteSheet"></div></div>
+  <div class="note-tip">列印時紙張選 A4、邊界選「無」或「預設」；要存檔可在印表機選「另存為 PDF」。內容空白的地方可列印後手寫補上。</div>
+</div>
+<div id="printRoot"></div>
 
 <script>
 (() => {
 const BUILD = "artifact";
 const TEST_BUILD = false; /* 打包測試版時改為 true：使用獨立的資料，不影響正式版 */
-const VERSION = "3.14.0";
+const VERSION = "3.15.0";
 /* 離線版檢查更新：讀取 GitHub 公開倉庫的版本檔，新版本以 zip 提供下載 */
 const UPDATE_URL = "https://raw.githubusercontent.com/gn01918004-hub/work-paper/main/release/version.json";
 const DOWNLOAD_URL = "https://github.com/gn01918004-hub/work-paper/raw/main/release/survey-schedule.zip";
 /* 更新紀錄（與 CHANGELOG.md 同步）：第一筆為目前版本 */
 const CHANGELOG = [
+  {v:"3.15.0", date:"2026-10-30", title:"法院案件欄位、延期改進辦理情形、延期便簽", items:[
+    "種類為法院、法院指界時，申請人欄位改為「法院」（可選苗栗地方法院、臺灣高等法院臺中分院），並多「股別」「發文字號」；顯示為「法院名稱/股別/發文字號」",
+    "舊的法院案件自動拆開，例「民信674」→ 股別 民信、發文字號 674，法院填苗栗地方法院",
+    "新增「收件字」欄位（80通數土、81通圖土、82通建），從 Map-Scheduler 同步的案件會自動帶入",
+    "「延期」移進辦理情形，不再另外按鈕；可先不選延期日期，上方會提醒「尚未排定延期日期」，之後打開案件補上日期即可",
+    "延期多「延期理由」，預設當日下雨、案情複雜需擴大檢測、現場會勘時間過長，也可自行輸入",
+    "可依一般案件或法院案件範本產生 A4 延期便簽，直接列印或存成 PDF 呈核；沒選延期日期時，「另於 年 月 日 午 時」留白",
+  ]},
   {v:"3.14.0", date:"2026-10-30", title:"辦理情形可自訂", items:[
     "常用資料的測量種類下方新增「辦理情形」：可新增、刪除、調整順序，並選擇排程表整行的強調色（綠、藍、黃、橘、紅、紫、灰）",
     "新增的辦理情形可勾選「算結案」，就不會列入逾期",
@@ -960,7 +1004,7 @@ const SEED = null; /* 離線版打包時填入 data/seed.json（代理人通訊�
 /* ---------- 預設參考資料（來自「常用ID」工作表） ---------- */
 const DEFAULT_TYPES = ["鑑界","圖面分割","協助分割","現場分割","合併","新建","回復","滅失","基地號勘查","法院","界址調整","更正編定","再鑑定","自用住宅","地上權勘查","段界調整","預為分割","位置測量","門牌勘查","鑑界(協辦)"];
 /* 辦理情形：可在常用資料增刪、排序、選強調色（S.statuses）。內建的有特別功能，不能刪除 */
-const SYS_STATUS = {"完成":"green", "補正":"yellow", "撤回":"green", "駁回":"green", "成圖":"blue", "擴大檢測":"", "現場抓點":"", "詳備註":""};
+const SYS_STATUS = {"完成":"green", "補正":"yellow", "撤回":"green", "駁回":"green", "成圖":"blue", "擴大檢測":"", "現場抓點":"", "延期":"", "詳備註":""};
 const TINTS = {"":["無",""], green:["綠","#16a34a"], blue:["藍","#3b82f6"], yellow:["黃","#f5b800"], orange:["橘","#f97316"], red:["紅","#e11d48"], purple:["紫","#a855f7"], gray:["灰","#64748b"]};
 const TINT_A = {yellow:"13%", gray:"9%"};   // 黃色淡色時不明顯，濃度高一點
 function statusList(){
@@ -974,6 +1018,14 @@ const tintOf = name => { const x = statusList().find(y => y.name === name); retu
 const tintAttr = name => { const k = tintOf(name); return k ? ` style="--tint:${TINTS[k][1]};--tint-a:${TINT_A[k] || "10%"}"` : ""; };
 const customClosed = name => statusList().some(x => x.name === name && x.closed);
 const PP = "延期";
+/* 法院案件（法院、法院指界）：申請人欄位改填法院名稱，另有股別、發文字號；顯示為「法院名稱/股別/發文字號」 */
+const COURT_TYPES = new Set(["法院", "法院指界"]);
+const COURTS = ["苗栗地方法院", "臺灣高等法院臺中分院"];
+const isCourt = c => COURT_TYPES.has(c && c.type);
+const appText = c => isCourt(c) ? [c.applicant, c.courtDiv, c.courtNo].filter(Boolean).join("/") : (c.applicant || "");
+/* 延期：辦理情形選「延期」，可先不排日期（會提醒）；延期理由預設三種，也可自行輸入 */
+const PP_REASONS = ["當日下雨", "案情複雜需擴大檢測", "現場會勘時間過長"];
+const ppPending = c => c.status === PP && !c.postponedTo && !isLeave(c);
 const STAMPED = new Set(["完成","補正","駁回","撤回"]); /* 選這些辦理情形時，自動把當下日期時間寫入備註 */
 const STAMP_RE = /^【(完成|補正|駁回|撤回) [^】]*】\n?/;
 const DONE = new Set(["完成"]), STOPPED = new Set(["撤回","駁回"]);
@@ -988,6 +1040,11 @@ function norm(c){
   if (c.kind === "leave") { if (!LEAVES[c.leaveType]) c.leaveType = LEAVES[c.status] ? c.status : leaveTypeOf(c.reason); c.status = c.leaveType; return c; }
   if (NOTICE_OLD[c.notice]) c.notice = NOTICE_OLD[c.notice];
   if (c.status === "檢測") c.status = "現場抓點";   // v3.10.0 改名
+  if (COURT_TYPES.has(c.type) && !c.courtDiv && !c.courtNo) {   // v3.15.0：舊的法院案件「民信674」拆成股別、發文字號；看不出法院的填苗栗地方法院
+    const a = String(c.applicant || "").trim(), parts = a.split("/").map(x => x.trim());
+    if (parts.length >= 2 && parts.length <= 3) { c.applicant = parts[0] || COURTS[0]; c.courtDiv = parts[1] || ""; c.courtNo = parts[2] || ""; }
+    else { const m = a.match(/^([^\d]+?)(\d+)$/); if (m && !/法院/.test(a)) { c.applicant = COURTS[0]; c.courtDiv = m[1]; c.courtNo = m[2]; } else if (!a) c.applicant = COURTS[0]; }
+  }
   if (!Array.isArray(c.inst)) c.inst = INST_OLD[c.inst] || (c.inst ? String(c.inst).split(/[、,，/\s]+/).filter(x => INSTS.includes(x)) : []);
   return c;
 }
@@ -1042,7 +1099,7 @@ const isOver = c => {
 const secOf = c => SECMAP.get(String(c.sec || ""));
 const monthOf = c => { const d = c.sched || c.recv || ""; return DAYOWNER.get(d) || d.slice(0,7); };
 const stClass = c => isLeave(c) ? "lv" : c.status === PP || c.status === EXP ? "pp" : DONE.has(c.status) ? "done" : STOPPED.has(c.status) ? "stop" : isOver(c) ? "over" : c.status ? "prog" : "todo";
-const stText = c => isLeave(c) ? c.leaveType : c.status || (isOver(c) ? "逾期" : "待辦");
+const stText = c => isLeave(c) ? c.leaveType : ppPending(c) ? "延期・未排日期" : c.status || (isOver(c) ? "逾期" : "待辦");
 const sk = c => (c.sched || "9999") + " " + (c.time || "99:99");
 function rebuild(){
   SECMAP = new Map(S.sections.map(s => [String(s.code), s]));
@@ -1184,6 +1241,12 @@ async function boot(){
   dl = await claude.use("downloads").catch(() => null);
   $("#btnBackup").hidden = !dl;
 }
+/* 延期但還沒排日期的案件：在上方提醒，點「查看」列出來 */
+function renderPpAlert(){
+  const n = real().filter(ppPending).length, el = $("#ppAlert");
+  el.hidden = !n || !["dash", "list"].includes(S.view);
+  if (n) el.innerHTML = `⚠ 有 <b>${n}</b> 件延期案件尚未排定延期日期<button class="btn sm" type="button" data-act="pppending">查看</button>`;
+}
 function showBanner(t){ const b = $("#banner"); b.textContent = t; b.hidden = false; }
 let toastT; function toast(t){ const el = $("#toast"); el.textContent = t; el.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => el.hidden = true, 2400); }
 async function saveFile(filename, data){
@@ -1230,7 +1293,7 @@ new MutationObserver(drawTopo).observe(document.documentElement, {attributes:tru
 const all = () => [...S.cases.values()];
 const real = () => all().filter(c => !isLeave(c));
 function render(){
-  renderBand(); renderSelects();
+  renderBand(); renderSelects(); renderPpAlert();
   const over = real().filter(isOver).length, nb = $("#navOver");
   nb.hidden = !over; nb.textContent = over;
   ({dash:renderDash, list:renderList, cal:renderCal, sec:renderSec, ref:renderRef})[S.view]();
@@ -1239,9 +1302,11 @@ function renderSelects(){
   const ft = $("#fType"), cur = ft.value;
   ft.innerHTML = `<option value="">全部種類</option>` + S.types.map(t => `<option${t===cur?" selected":""}>${esc(t)}</option>`).join("");
   const fs = $("#fStatus"), fcur = S.fStatus;
-  fs.innerHTML = [["", "全部狀態"], ["__open", "未結案"], ["__overdue", "逾期未結"], ["__nonotice", "通知未寄出"], ...[...STATUSES_NOW(), PP].map(n => [n, n])]
+  fs.innerHTML = [["", "全部狀態"], ["__open", "未結案"], ["__overdue", "逾期未結"], ["__nonotice", "通知未寄出"], ["__pppending", "延期未排日期"], ...[...new Set([...STATUSES_NOW(), PP])].map(n => [n, n])]
     .map(([v, t]) => `<option value="${esc(v)}"${v === fcur ? " selected" : ""}>${esc(t)}</option>`).join("");
   $("#dlAgents").innerHTML = S.agents.map(a => `<option value="${esc(a.name)}">`).join("");
+  $("#dlCourts").innerHTML = [...new Set([...COURTS, ...real().filter(isCourt).map(c => c.applicant).filter(Boolean)])].map(n => `<option value="${esc(n)}">`).join("");
+  $("#dlPpReasons").innerHTML = [...new Set([...PP_REASONS, ...real().map(c => c.ppReason).filter(Boolean)])].map(n => `<option value="${esc(n)}">`).join("");
   $("#dlSections").innerHTML = S.sections.map(s => `<option value="${esc(s.code)}">${esc(s.town)} ${esc(s.name)}</option>`).join("");
   $("#dlTowns").innerHTML = [...new Set(S.sections.map(s => s.town))].map(t => `<option value="${esc(t)}">`).join("");
 }
@@ -1295,7 +1360,7 @@ function renderDash(){
   $("#upMeta").textContent = open.length ? `未結案 ${open.length} 件` : "";
   $("#upList").innerHTML = up.length ? up.map(c => { const s = secOf(c); return `<button type="button" class="up" data-id="${c.id}">
       <span class="dblock${ud(c).sched===TODAY?" now":isOver(c)?" over":""}"><b>${md(ud(c).sched)}</b><span>${inspDate(c) ? "抓點" : "週" + dow(ud(c).sched)}${ud(c).time ? " " + esc(ud(c).time) : ""}</span></span>
-      <span class="main"><b>${esc(c.type || "案件")}</b>　${esc(s ? s.name : c.sec || "")} <span class="num">${esc(c.lot || "")}</span>${lkChip(c)}<span class="l2">${esc(c.applicant || "—")}${c.agent ? `・代理 ${esc(c.agent)}` : ""}${s ? `・${esc(s.town)}` : ""}</span></span>
+      <span class="main"><b>${esc(c.type || "案件")}</b>　${esc(s ? s.name : c.sec || "")} <span class="num">${esc(c.lot || "")}</span>${lkChip(c)}<span class="l2">${esc(appText(c) || "—")}${c.agent ? `・代理 ${esc(c.agent)}` : ""}${s ? `・${esc(s.town)}` : ""}</span></span>
       <span class="st ${stClass(c)}">${esc(stText(c))}</span></button>`; }).join("")
     : `<div class="empty">${S.loaded ? "目前沒有未結案件。按「新增案件」排入下一件。" : "載入中…"}</div>`;
   const mix = {}; month.forEach(c => mix[c.type || "未分類"] = (mix[c.type || "未分類"] || 0) + 1);
@@ -1306,7 +1371,7 @@ function renderDash(){
   $("#corrList").innerHTML = corr.length ? corr.map(c => { const s = secOf(c), lv = corrLevel(c), due = corrDue(c);
     return `<button type="button" class="cr ${lv}" data-id="${c.id}">
       <span class="dblock${lv === "grace" || lv === "over" ? " over" : ""}">${due ? `<b>${md(due)}</b><span>到期・週${dow(due)}</span>` : `<b>—</b><span>未設日期</span>`}</span>
-      <span class="main"><b>${esc(c.type || "案件")}</b>　${esc(s ? s.name : c.sec || "")} <span class="num">${esc(c.lot || "")}</span>${lkChip(c)}<span class="l2">${esc(c.applicant || "—")}${c.agent ? `・代理 ${esc(c.agent)}` : ""}${corrDate(c) ? `・${md(corrDate(c))} 補正` : ""}</span></span>
+      <span class="main"><b>${esc(c.type || "案件")}</b>　${esc(s ? s.name : c.sec || "")} <span class="num">${esc(c.lot || "")}</span>${lkChip(c)}<span class="l2">${esc(appText(c) || "—")}${c.agent ? `・代理 ${esc(c.agent)}` : ""}${corrDate(c) ? `・${md(corrDate(c))} 補正` : ""}</span></span>
       <span class="left ${lv}">${lv === "grace" || lv === "over" ? "⚠ " : ""}${esc(corrText(c))}</span></button>`; }).join("")
     : `<div class="empty" style="padding:18px">目前沒有補正中的案件</div>`;
 }
@@ -1335,8 +1400,9 @@ function matches(c, q){
   if (S.fStatus === "__open" && isClosed(c)) return false;
   if (S.fStatus === "__overdue" && !isOver(c)) return false;
   if (S.fStatus === "__nonotice" && !needsNotice(c)) return false;
+  if (S.fStatus === "__pppending" && !ppPending(c)) return false;
   if (S.fStatus && !S.fStatus.startsWith("__") && c.status !== S.fStatus) return false;
-  if (q) { const s = secOf(c); if (![c.type,c.no,c.sec,s&&s.name,s&&s.town,c.lot,c.applicant,c.agent,c.note,c.reason,c.status,c.leaveType,c.time,(c.inst||[]).join(" "),c.extNo,c.extWord,c.surveyor,...subHay(c)].join(" ").toLowerCase().includes(q)) return false; }
+  if (q) { const s = secOf(c); if (![c.type,c.no,c.sec,s&&s.name,s&&s.town,c.lot,c.applicant,c.courtDiv,c.courtNo,c.ppReason,c.word,c.agent,c.note,c.reason,c.status,c.leaveType,c.time,(c.inst||[]).join(" "),c.extNo,c.extWord,c.surveyor,...subHay(c)].join(" ").toLowerCase().includes(q)) return false; }
   return true;
 }
 /* 連件：子件只記自己的案件編號、種類、段代碼、地號，其餘欄位與主件（第一件）共用 */
@@ -1393,7 +1459,7 @@ function rowHTML(c){
   if (c.insp) { const r = c.ref;
     return `<tr class="insp${c.sched === TODAY ? " istoday" : ""}" data-goto="${r.id}" data-d="${c.sched}" title="點一下前往原案件">${dateCell(c)}` + cellsHTML({
       type:`<td><b>${esc(r.type)}</b><span class="lkb insp">現場抓點</span></td>`, sec:secCell(r), lot:`<td class="num">${esc(r.lot)}${lkChip(r)}</td>`,
-      applicant:`<td>${esc(r.applicant)}</td>`, agent:`<td>${esc(r.agent)}</td>`, no:`<td class="num">${esc(r.no)}</td>`,
+      applicant:`<td>${esc(appText(r))}</td>`, agent:`<td>${esc(r.agent)}</td>`, no:`<td class="num">${esc(r.no)}</td>`,
       recv:null, notice:null, inst:null, status:null, note:null,
     }, `<span class="plink">→ 前往原案件${r.sched ? `（原排定 ${md(r.sched)}${r.time ? " " + esc(r.time) : ""}）` : ""}</span>`) + `</tr>`; }
   const dcell = dateCell(c);
@@ -1406,7 +1472,7 @@ function rowHTML(c){
   return `<tr class="s-${sc==="over"?"todo":sc}${isOver(c)?" over":""}${tintOf(c.status) ? " tint" : ""}${c.sched === TODAY ? " istoday" : ""}" data-id="${c.id}" data-d="${c.sched||""}"${tintAttr(c.status)}>${dcell}` + cellsHTML({
     type:`<td><b>${esc(c.type)}</b>${lkN(c) ? `<span class="lkb">連件 ${lkN(c) + 1}</span>` : ""}</td>`,
     recv:`<td class="num">${md(c.recv)}</td>`, no:`<td class="num">${esc(c.no)}${lkChip(c)}</td>`, sec:secCell(c),
-    lot:`<td class="num">${esc(c.lot)}${lkChip(c)}</td>`, applicant:`<td>${esc(c.applicant)}</td>`, agent:`<td>${esc(c.agent)}</td>`,
+    lot:`<td class="num">${esc(c.lot)}${lkChip(c)}</td>`, applicant:`<td>${esc(appText(c))}</td>`, agent:`<td>${esc(c.agent)}</td>`,
     notice:`<td>${noticeSel(c)}</td>`, inst:`<td>${instSel(c)}</td>`,
     status:`<td><span class="st ${sc}">${esc(stText(c))}</span>${inspDate(c) ? `<small class="due">${md(inspDate(c))}${inspTime(c) ? " " + esc(inspTime(c)) : ""} 現場抓點</small>` : ""}${c.status === "補正" ? `<small class="due ${corrLevel(c)}">${corrDue(c) ? `${md(corrDue(c))} 到期・` : ""}${esc(corrText(c))}</small>` : ""}</td>`,
     note:`<td class="note">${ppLinks(c)}${esc(c.note)}</td>`,
@@ -1525,17 +1591,17 @@ function renderCal(){
     const k = iso(d), list = bd.get(k) || [], wd = d.getDay() > 0 && d.getDay() < 6;
     const off = wd && !isWorkday(k) && !list.length;
     html += `<div class="day${d.getMonth()!==m-1?" out":""}${k===TODAY?" now":""}${off?" off":""}" data-date="${k}"><span class="n"><b>${d.getDate()}</b><small>${HOLIDAYS[k] || ""}</small></span>` +
-      list.map(c => c.insp ? `<div class="ev insp" data-goto="${c.ref.id}" title="${esc(["現場抓點", c.time, c.ref.type, secOf(c.ref)?.name, c.ref.lot, c.ref.applicant, "點一下前往原案件"].filter(Boolean).join("・"))}">
+      list.map(c => c.insp ? `<div class="ev insp" data-goto="${c.ref.id}" title="${esc(["現場抓點", c.time, c.ref.type, secOf(c.ref)?.name, c.ref.lot, appText(c.ref), "點一下前往原案件"].filter(Boolean).join("・"))}">
           <span class="r1"><span>抓點・${esc(c.ref.type || "案件")}</span>${c.time ? `<span class="tm">${esc(c.time)}</span>` : ""}</span>
           ${c.ref.no ? `<span class="r">編號 <span class="num">${esc(c.ref.no)}</span></span>` : ""}
           ${secOf(c.ref) || c.ref.lot ? `<span class="r">${esc(secOf(c.ref)?.name || c.ref.sec || "")} <span class="num">${esc(c.ref.lot || "")}</span></span>` : ""}
-          ${c.ref.applicant ? `<span class="r">${esc(c.ref.applicant)}</span>` : ""}</div>`
+          ${appText(c.ref) ? `<span class="r">${esc(appText(c.ref))}</span>` : ""}</div>`
         : isLeave(c) ? `<div class="ev leave ${LEAVES[c.leaveType]}" data-id="${c.id}" title="${esc([c.leaveType, c.time, c.reason].filter(Boolean).join("・"))}">${esc(c.leaveType)}${c.reason && c.reason !== c.leaveType ? ` <span class="x">${esc(c.reason)}</span>` : ""}</div>`
         : `<div class="ev evc ${DONE.has(c.status)?"done":c.status===PP||c.status===EXP?"pp":isOver(c)?"over":""}" data-id="${c.id}" title="${esc([c.type, c.time, c.no && "編號 " + c.no, secOf(c)?.name, c.lot, c.applicant, c.status, lkN(c) && `連件共 ${lkN(c) + 1} 件`].filter(Boolean).join("・"))}">
           <span class="r1"><span>${esc(c.type || "案件")}</span>${c.time ? `<span class="tm">${esc(c.time)}</span>` : ""}</span>
           ${c.no ? `<span class="r">編號 <span class="num">${esc(c.no)}${lkText(c)}</span></span>` : ""}
           ${secOf(c) || c.lot ? `<span class="r">${esc(secOf(c)?.name || c.sec || "")} <span class="num">${esc(c.lot || "")}</span>${!c.no && lkN(c) ? lkText(c) : ""}</span>` : ""}
-          ${c.applicant ? `<span class="r">${esc(c.applicant)}</span>` : ""}</div>`).join("") + `</div>`;
+          ${appText(c) ? `<span class="r">${esc(appText(c))}</span>` : ""}</div>`).join("") + `</div>`;
   }
   $("#cal").innerHTML = html;
 }
@@ -1603,11 +1669,22 @@ function drawStatus(){
 }
 /* 現場抓點、擴大檢測的日期時間欄位：選了該辦理情形才顯示；已擴大檢測過的紀錄不再顯示 */
 function stRows(){
-  const base = S.editing ? S.cases.get(S.editing) : null, done = base && base.status === EXP && base.expandedTo;
-  document.querySelectorAll("#caseForm [data-st]").forEach(el => el.hidden = S.kind !== "case" || el.dataset.st !== S.status || (el.dataset.st === EXP && !!done));
+  const base = S.editing ? S.cases.get(S.editing) : null, done = base && base.status === EXP && base.expandedTo, ppDone = base && base.status === PP && base.postponedTo;
+  document.querySelectorAll("#caseForm [data-st]").forEach(el => el.hidden = S.kind !== "case" || el.dataset.st !== S.status || (el.dataset.st === EXP && !!done) || (el.hasAttribute("data-pp-date") && !!ppDone));
+}
+/* 種類為法院、法院指界時：申請人改為「法院」（可下拉選），並顯示股別、發文字號 */
+function courtUI(){
+  const court = COURT_TYPES.has($("#cType").value);
+  $("#cAppLbl").textContent = court ? "法院" : "申請人";
+  $("#cApp").setAttribute("list", court ? "dlCourts" : "");
+  $("#cApp").placeholder = court ? "選擇或輸入法院名稱" : "";
+  if (court && !$("#cApp").value.trim() && S.kind === "case") $("#cApp").value = COURTS[0];
+  if (!court && COURTS.includes($("#cApp").value.trim())) $("#cApp").value = "";   // 從法院改成其他種類時，清掉預設的法院名稱
+  document.querySelectorAll("#caseForm [data-court]").forEach(el => el.hidden = !court || S.kind !== "case");
 }
 function setKind(k){
   S.kind = k;
+  if (typeof courtUI === "function" && $("#cAppLbl")) setTimeout(courtUI, 0);
   $("#kindSeg").querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", b.dataset.kind === k));
   document.querySelectorAll("#caseForm [data-for]").forEach(el => el.hidden = el.dataset.for !== k);
   $("#stampRow").hidden = k !== "case" || !STAMPED.has(S.status);
@@ -1644,6 +1721,8 @@ function openDrawer(c, preset = {}){
   $("#cType").innerHTML = `<option value="">（選擇種類）</option>` + S.types.map(t => `<option${t===v.type?" selected":""}>${esc(t)}</option>`).join("") + (v.type && !S.types.includes(v.type) ? `<option selected>${esc(v.type)}</option>` : "");
   $("#cSched").value = v.sched || ""; $("#cTime").value = v.time || ""; $("#cRecv").value = v.recv || ""; $("#cNo").value = v.no || "";
   $("#cSec").value = v.sec || ""; $("#cLot").value = v.lot || ""; $("#cApp").value = v.applicant || "";
+  $("#cCourtDiv").value = v.courtDiv || ""; $("#cCourtNo").value = v.courtNo || ""; $("#cWord").value = v.word || v.extWord || "";
+  $("#cPpReason").value = v.ppReason || ""; $("#cPpDate").value = v.postponedToDate || ""; $("#cPpTime").value = v.postponedToTime || "";
   $("#cAgent").value = v.agent || ""; $("#cReason").value = v.reason || ""; $("#cNote").value = v.note || "";
   S.subs = subsOf(v).map(x => ({...x})); drawLinks();
   S.notice = v.notice || ""; S.inst = [...(v.inst || [])]; S.status = isLeave(v) ? "" : (v.status || ""); S.lv = v.leaveType || "休假";
@@ -1652,8 +1731,7 @@ function openDrawer(c, preset = {}){
   $("#cExpDate").value = ""; $("#cExpTime").value = "";
   drawNotice(); drawInst(); drawStatus(); drawLv(); agentHint(); setKind(v.kind || "case");
   const lk = c ? linkHTML(c) : "", lr = $("#linkRow"); lr.innerHTML = lk; lr.hidden = !lk;
-  $("#ppPanel").hidden = true;
-  $("#dPostpone").hidden = !(c && !isLeave(c) && c.status !== PP && c.status !== EXP);
+  courtUI();
   $("#delWrap").innerHTML = c ? `<button class="btn danger" type="button" id="dDelete">刪除</button>` : "";
   $("#scrim").hidden = false; $("#drawer").hidden = false;
   setTimeout(() => (S.kind === "leave" ? $("#cSched") : $("#cType")).focus(), 40);
@@ -1669,7 +1747,13 @@ function collectForm(){
   }
   const c = {...(base || {}), kind:"case", type:$("#cType").value, sched, time, recv:$("#cRecv").value, no:$("#cNo").value.trim(),
     notice:S.notice, sec:$("#cSec").value.trim(), lot:$("#cLot").value.trim(), applicant:$("#cApp").value.trim(),
-    agent:$("#cAgent").value.trim(), inst:[...S.inst], status:S.status, note};
+    agent:$("#cAgent").value.trim(), inst:[...S.inst], status:S.status, note, word:$("#cWord").value.trim()};
+  if (COURT_TYPES.has(c.type)) { c.courtDiv = $("#cCourtDiv").value.trim(); c.courtNo = $("#cCourtNo").value.trim(); } else { delete c.courtDiv; delete c.courtNo; }
+  if (c.status === PP) {
+    c.ppReason = $("#cPpReason").value.trim();
+    const nd = $("#cPpDate").value;
+    if (nd && !(base && base.postponedTo)) c._postpone = {nd, nt:$("#cPpTime").value};   // 有選日期：存檔時複製一筆到延期日期
+  } else delete c.ppReason;
   const subs = S.subs.map(x => ({no:(x.no || "").trim(), type:x.type || "", sec:(x.sec || "").trim(), lot:(x.lot || "").trim()})).filter(x => x.no || x.lot || x.sec);
   if (subs.length) c.subs = subs; else delete c.subs;
   if (STAMPED.has(c.status) && $("#cStampAt").value) c.statusAt = $("#cStampAt").value; else delete c.statusAt;
@@ -1692,21 +1776,57 @@ async function submitDrawer(){
   if (!S.canWrite) { toast("你只有檢視權限"); return; }
   const c = collectForm(); if (!c) return;
   if (c._expand) { const {nd, nt} = c._expand; delete c._expand; closeDrawer(); return expand(c, nd, nt); }
+  if (c._postpone) { const {nd, nt} = c._postpone; delete c._postpone; closeDrawer(); return postponeTo(c, nd, nt); }
   const isNew = !c.id;
   closeDrawer();
-  try { await saveCase(c); toast(isNew ? "已新增" : "已更新"); if (c.sched && S.view === "list" && !filtering()) { ensureRange(c.sched); renderList(); } }
+  try { await saveCase(c); toast(ppPending(c) ? "已標為延期，尚未排定延期日期（之後打開這件即可補上）" : isNew ? "已新增" : "已更新"); if (c.sched && S.view === "list" && !filtering()) { ensureRange(c.sched); renderList(); } }
   catch(e){ writeFailed(e); }
 }
-async function postpone(){
-  if (!S.canWrite) { toast("你只有檢視權限"); return; }
-  const cur = collectForm(); if (!cur || !cur.id) return;
-  const nd = $("#ppDate").value, nt = $("#ppTime").value;
-  if (!nd) { toast("請選擇延期後的日期"); $("#ppDate").focus(); return; }
+/* ---------- 延期便簽 ---------- */
+const roc = d => { const [y, m, dd] = d.split("-").map(Number); return {y:y - 1911, m, d:dd}; };
+const BL = (w = "") => `<span class="bl${w ? " " + w : ""}">　</span>`;
+const V = t => t ? `<span class="v">${esc(t)}</span>` : BL();
+function noteHTML(c){
+  const court = isCourt(c), s = secOf(c);
+  const sm = (s ? s.name : "").match(/^(.+?)段(?:(.+?)小段)?$/);
+  const seg = sm ? sm[1] : (s ? s.name.replace(/段$/, "") : ""), sub = sm && sm[2] ? sm[2] : "";
+  const lots = [c.lot, ...subsOf(c).filter(x => !x.sec || x.sec === c.sec).map(x => x.lot)].filter(Boolean).join("、");
+  const others = subsOf(c).filter(x => x.sec && x.sec !== c.sec).map(x => { const o = secOf(x); return `${o ? o.name : x.sec}${x.lot || ""}地號`; });
+  const kind = /建物/.test(c.type || "") ? "建物" : "土地";
+  const who = court ? `${V(c.applicant)}囑託` : `${V(c.applicant)}申請`;
+  const word = String(c.word || c.extWord || "").replace(/^\d+/, "");
+  const od = c.sched ? roc(c.sched) : null;
+  const nd = c.postponedToDate || "", nt = c.postponedToTime || "";
+  const when = nd ? (() => { const r = roc(nd), [H, M] = (nt || "").split(":").map(Number), hasT = !!nt;
+      return `${V(String(r.y))}年${V(String(r.m))}月${V(String(r.d))}日${hasT ? `${V(H < 12 ? "上" : "下")}午${V(String(H))}時${M ? `${V(String(M))}分` : ""}` : `${BL()}午${BL()}時`}`; })()
+    : `${BL()}年${BL()}月${BL()}日${BL()}午${BL()}時`;
+  const place = `${V(s ? s.town : "")}鎮${V(seg)}段${sub ? `${V(sub)}小段` : ""}${V(lots)}地號${others.length ? "、" + others.map(esc).join("、") : ""}`;
+  return `<div class="box">
+    <div class="hd">便簽</div>
+    <div class="bd"><p>主旨：${who}${place}${kind}測量乙案(本所${V(word)}收件字第${V(c.no)}號)，原通知日期為${od ? `${V(String(od.y))}年${V(String(od.m))}月${V(String(od.d))}日` : `${BL()}年${BL()}月${BL()}日`}，茲因${c.ppReason ? V(c.ppReason) : BL("w")}致無法完成施測，擬請准予另於${when}前往施測，並於奉核後通知當事人。</p>
+      <p class="ok">謹簽請　鑒核。</p></div>
+    <table class="sign"><thead><tr><th>測量員</th><th>課長</th><th>秘書</th><th>主任</th></tr></thead><tbody><tr><td></td><td></td><td></td><td></td></tr></tbody></table>
+  </div>`;
+}
+function openNote(c){
+  const base = c.id ? S.cases.get(c.id) : null;
+  const data = {...c};
+  if (!data.postponedToDate && $("#cPpDate").value && !(base && base.postponedTo)) { data.postponedToDate = $("#cPpDate").value; data.postponedToTime = $("#cPpTime").value; }
+  $("#noteSheet").innerHTML = noteHTML(data);
+  $("#notedlg").hidden = false; $("#scrim").hidden = false; $("#notePrint").focus();
+}
+function closeNote(){ if ($("#notedlg").hidden) return; $("#notedlg").hidden = true; $("#printRoot").innerHTML = ""; if ($("#drawer").hidden && $("#mdlg").hidden) $("#scrim").hidden = true; }
+$("#noteClose").onclick = closeNote;
+$("#notePrint").onclick = () => { $("#printRoot").innerHTML = `<div class="a4">${$("#noteSheet").innerHTML}</div>`; window.print(); };
+addEventListener("afterprint", () => { $("#printRoot").innerHTML = ""; });
+
+/* 延期：原案件改成「延期」留在原日期，並複製一筆到延期日期（辦理情形清空、通知改未寄出），兩筆互相連結 */
+async function postponeTo(cur, nd, nt){
+  if (!cur.id) cur.id = genId();
   const copy = {...cur};
-  ["id","postponedTo","postponedToDate","postponedToTime"].forEach(k => delete copy[k]);
+  ["id","postponedTo","postponedToDate","postponedToTime","ppReason","statusAt","corrDue","inspectAt"].forEach(k => delete copy[k]);
   Object.assign(copy, {sched:nd, time:nt, status:"", notice:cur.notice === "不需要通知" ? cur.notice : "未寄出",
     postponedFrom:cur.id, postponedFromDate:cur.sched || "", postponedFromTime:cur.time || ""});
-  closeDrawer();
   try {
     await saveCase(copy);
     await saveCase({...cur, status:PP, postponedTo:copy.id, postponedToDate:nd, postponedToTime:nt});
@@ -1792,7 +1912,7 @@ function caseRow(c){
   if (isLeave(c)) { E[2] = c.sched; E[3] = c.time || ""; E[9] = c.reason || ""; E[13] = c.leaveType; E[14] = c.note || ""; return E; }
   const pp = [inspDate(c) ? `現場抓點 ${md(inspDate(c))}${inspTime(c) ? " " + inspTime(c) : ""}` : "", c.postponedTo ? `延期至 ${md(c.postponedToDate)}${c.postponedToTime ? " " + c.postponedToTime : ""}` : "", c.postponedFrom ? `由 ${md(c.postponedFromDate)} 延期` : "",
     c.expandedTo ? `擴大檢測至 ${md(c.expandedToDate)}${c.expandedToTime ? " " + c.expandedToTime : ""}` : "", c.expandedFrom ? `由 ${md(c.expandedFromDate)} 擴大檢測` : ""];
-  return [c.type||"", c.recv||"", c.sched||"", c.time||"", c.no||"", c.notice||"", s?s.town:"", c.sec||"", s?s.name:"", c.lot||"", c.applicant||"", c.agent||"", (c.inst||[]).join("、"), c.status||"", [...pp, c.note||""].filter(Boolean).join("／")];
+  return [c.type||"", c.recv||"", c.sched||"", c.time||"", c.no||"", c.notice||"", s?s.town:"", c.sec||"", s?s.name:"", c.lot||"", appText(c), c.agent||"", (c.inst||[]).join("、"), c.status||"", [...pp, c.note||""].filter(Boolean).join("／")];
 }
 function buildWorkbook(){
   const wb = XLSX.utils.book_new(), keys = monthKeys(), multi = new Set(keys.map(k => k.slice(0,4))).size > 1;
@@ -2083,7 +2203,8 @@ function msToCase(x){
   const notes = [x.notes || "", !p.ok && x.landParcel ? `地段地號：${x.landParcel}` : "", !tm && x.scheduledTime ? `排件時間：${x.scheduledTime}` : ""].filter(Boolean).join("／");
   const sched = /^\d{4}-\d{2}-\d{2}$/.test(x.surveyDate || "") ? x.surveyDate : "";
   return {c:{kind:"case", type:x.caseType || "", sched, time:tm, extSched:sched, extTime:tm, recv:n.recv, no:n.no,
-      sec:p.sec, lot:p.lot, applicant:x.owner || "", agent:x.agent || "", notice:"", inst:[], status:"", note:notes,
+      sec:p.sec, lot:p.lot, applicant:x.owner || "", courtDiv:x.courtDivision || "", courtNo:x.courtDocNo || "", word:x.receiveWord || "",
+      agent:x.agent || "", notice:"", inst:[], status:"", note:notes,
       extId:x.id, extSrc:MS_SRC, extNo:n.full, extWord:n.word, surveyor:x.surveyor || ""},
     warn:[!n.ok && x.caseNumber ? "案號格式不同，原樣放入案件編號" : "", !p.ok && x.landParcel ? "找不到地段，原文放在備註" : "",
       p.ambiguous ? `「${x.landParcel}」有同名地段，已選${SECMAP.get(p.sec)?.town || ""}，請確認` : "", !tm && x.scheduledTime ? "時間格式不同，原文放在備註" : ""].filter(Boolean)};
@@ -2119,7 +2240,7 @@ function openMsChg(list){
   msChgPending = list;
   $("#mscTitle").textContent = `Map-Scheduler 有 ${list.length} 件改了日期或時間`;
   $("#mscRows").innerHTML = list.map((f, i) => { const c = f.c, s = secOf(c);
-    return `<tr><td><b>${esc(c.type)}</b><span class="sub">${esc(s ? s.name : c.sec || "")} ${esc(c.lot || "")}・${esc(c.applicant || "")}</span></td><td class="num">${esc(c.no || "")}</td>
+    return `<tr><td><b>${esc(c.type)}</b><span class="sub">${esc(s ? s.name : c.sec || "")} ${esc(c.lot || "")}・${esc(appText(c))}</span></td><td class="num">${esc(c.no || "")}</td>
       <td>${whenTxt(c.sched, c.time)}</td><td style="color:var(--gnss);font-weight:700">→ ${whenTxt(f.sched, f.time)}</td>
       <td><select class="cellsel" data-i="${i}" aria-label="第 ${i + 1} 件"><option value="apply" selected>改成新的</option><option value="keep">保留目前</option></select></td></tr>`; }).join("");
   $("#scrim").hidden = false; $("#mschg").hidden = false; $("#mscGo").focus();
@@ -2215,7 +2336,7 @@ function openMsNew(fresh){
     return `<tr class="${f.dup ? "msdup" : ""}"><td><input type="checkbox" data-i="${i}" ${f.dup ? "" : "checked"} aria-label="匯入第 ${i + 1} 件"></td>
       <td class="dt">${c.sched ? `${md(c.sched)}<span>週${dow(c.sched)}</span>` : "<span>未排</span>"}${c.time ? `<small class="tm">${esc(c.time)}</small>` : ""}</td>
       <td><b>${esc(c.type)}</b></td><td>${s ? esc(s.name) : `<span style="color:var(--crit)">${esc(f.x.landParcel || "")}</span>`}</td><td class="num">${esc(c.lot)}</td>
-      <td class="num">${esc(c.no)}</td><td class="num">${md(c.recv)}</td><td>${esc(c.applicant)}</td>
+      <td class="num">${esc(c.no)}</td><td class="num">${md(c.recv)}</td><td>${esc(appText(c))}</td>
       <td>${f.dup ? `<span class="mstag dup">已有同案號</span>` : `<span class="mstag new">新案件</span>`}${f.warn.map(w => ` <span class="mstag bad" title="${esc(w)}">!</span>`).join("")}${f.warn.length ? `<small class="due" style="color:var(--ink-3)">${esc(f.warn.join("；"))}</small>` : ""}</td></tr>`; }).join("");
   $("#msnAll").checked = fresh.every(f => !f.dup); $("#msnAuto").checked = false;
   msCount(); $("#scrim").hidden = false; $("#msnew").hidden = false; $("#msnGo").focus();
@@ -2305,6 +2426,7 @@ function go(v){
   render();
 }
 $("#nav").onclick = e => { const b = e.target.closest("button[data-view]"); if (b) go(b.dataset.view); };
+$("#ppAlert").onclick = e => { if (!e.target.closest('[data-act="pppending"]')) return; clearFilters(); S.fStatus = "__pppending"; go("list"); $("#fStatus").value = "__pppending"; renderList(); };
 $("#kpis").onclick = e => {
   const b = e.target.closest("[data-go]"); if (!b) return; const a = b.dataset.go;
   if (a === "cal") { S.calMonth = TODAY.slice(0,7); go("cal"); return; }
@@ -2382,9 +2504,9 @@ document.addEventListener("click", e => {
   el.dispatchEvent(new Event("input", {bubbles:true}));
 });
 $("#linkRow").onclick = e => { const g = e.target.closest("[data-goto]"); if (g) gotoCase(g.dataset.goto); };
-$("#dPostpone").onclick = () => { $("#ppPanel").hidden = false; $("#ppDate").value = ""; $("#ppTime").value = $("#cTime").value; $("#ppPanel").scrollIntoView({block:"nearest"}); $("#ppDate").focus(); };
-$("#ppCancel").onclick = () => { $("#ppPanel").hidden = true; };
-$("#ppGo").onclick = postpone;
+$("#cType").addEventListener("change", courtUI);
+$("#cWord").addEventListener("input", e => { if (e.inputType && e.inputType.startsWith("delete")) return; const v = e.target.value.trim(); if (/^\d{2}$/.test(v)) { const w = ["80通數土","81通圖土","82通建"].find(x => x.startsWith(v)); if (w) e.target.value = w; } });
+$("#btnNote").onclick = () => { const c = collectForm(); if (c) { delete c._postpone; delete c._expand; openNote(c); } };
 $("#addLink").onclick = () => { if (S.subs.length) { $("#linkBox").scrollIntoView({block:"nearest"}); return; } addLink(); };
 $("#addLink2").onclick = addLink;
 $("#linkList").addEventListener("input", e => {
@@ -2502,7 +2624,7 @@ $("#colList").addEventListener("drop", e => {
   const ord = colOrder().filter(k => k !== colDrag); ord.splice(ord.indexOf(li.dataset.k), 0, colDrag); setCols(ord);   // 放在目標的前面
 });
 
-$("#scrim").onclick = () => { closeDrawer(); closeMonth(); closeVer(); closeUpd(); closeAb(); closeMs(); closeMsNew(); closeMsChg(); closeCols(); };
+$("#scrim").onclick = () => { closeDrawer(); closeMonth(); closeVer(); closeUpd(); closeAb(); closeMs(); closeMsNew(); closeMsChg(); closeCols(); closeNote(); };
 const VSEEN = "survey-version-seen", USKIP = "survey-update-skip";
 const vcmp = (a, b) => { const x = String(a).split(".").map(Number), y = String(b).split(".").map(Number); for (let i = 0; i < 3; i++) { const d = (x[i] || 0) - (y[i] || 0); if (d) return d; } return 0; };
 let updInfo = null;
@@ -2638,9 +2760,9 @@ $("#stForm").onsubmit = e => {
 $("#typeTags").onclick = async e => { const b = e.target.closest("[data-del-type]"); if (!b) return; S.types.splice(Number(b.dataset.delType), 1); try { await saveLists(); } catch(err){ writeFailed(err); } };
 
 document.addEventListener("keydown", e => {
-  if (e.key === "Escape") { if (!$("#cdlg").hidden) closeCols(); else if (!$("#mschg").hidden) closeMsChg(); else if (!$("#msnew").hidden) closeMsNew(); else if (!$("#msdlg").hidden) closeMs(); else if (!$("#adlg").hidden) closeAb(); else if (!$("#udlg").hidden) closeUpd(); else if (!$("#vdlg").hidden) closeVer(); else if (!$("#drawer").hidden) closeDrawer(); else if (!$("#mdlg").hidden) closeMonth(); return; }
+  if (e.key === "Escape") { if (!$("#notedlg").hidden) closeNote(); else if (!$("#cdlg").hidden) closeCols(); else if (!$("#mschg").hidden) closeMsChg(); else if (!$("#msnew").hidden) closeMsNew(); else if (!$("#msdlg").hidden) closeMs(); else if (!$("#adlg").hidden) closeAb(); else if (!$("#udlg").hidden) closeUpd(); else if (!$("#vdlg").hidden) closeVer(); else if (!$("#drawer").hidden) closeDrawer(); else if (!$("#mdlg").hidden) closeMonth(); return; }
   const typing = /INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName || "");
-  if (typing || e.metaKey || e.ctrlKey || e.altKey || !$("#drawer").hidden || !$("#mdlg").hidden || !$("#vdlg").hidden || !$("#udlg").hidden || !$("#adlg").hidden || !$("#msdlg").hidden || !$("#msnew").hidden || !$("#mschg").hidden || !$("#cdlg").hidden) return;
+  if (typing || e.metaKey || e.ctrlKey || e.altKey || !$("#drawer").hidden || !$("#mdlg").hidden || !$("#vdlg").hidden || !$("#udlg").hidden || !$("#adlg").hidden || !$("#msdlg").hidden || !$("#msnew").hidden || !$("#mschg").hidden || !$("#cdlg").hidden || !$("#notedlg").hidden) return;
   if (e.key === "n" || e.key === "N") { e.preventDefault(); openDrawer(null); }
   if (S.view === "list" && (e.key === "t" || e.key === "T")) { e.preventDefault(); backToToday(); return; }
   if (e.key === "/") { e.preventDefault(); if (S.view !== "list") go("list"); $("#q").focus(); }

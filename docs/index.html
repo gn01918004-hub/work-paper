@@ -123,6 +123,14 @@ let TODAY = iso(new Date());
 const CLOSED = new Set(["完成", "撤回", "駁回", "延期", "擴大檢測"]);
 const LV = {"休假":"--lv-off", "出差":"--lv-trip", "上課":"--lv-class"};
 const isLeave = c => c.kind === "leave";
+/* 法院案件：申請人欄位顯示「法院名稱/股別/發文字號」（電腦版 v3.15.0 起） */
+const COURT_TYPES = new Set(["法院", "法院指界"]);
+const appText = c => {
+  if (!COURT_TYPES.has(c.type)) return c.applicant || "";
+  if (c.courtDiv || c.courtNo) return [c.applicant, c.courtDiv, c.courtNo].filter(Boolean).join("/");
+  const m = String(c.applicant || "").match(/^([^\d]+?)(\d+)$/);   // 舊資料「民信674」
+  return m && !/法院/.test(c.applicant) ? `苗栗地方法院/${m[1]}/${m[2]}` : (c.applicant || "苗栗地方法院");
+};
 /* 電腦版 v3.14.0 起可自訂辦理情形；勾了「算結案」的也當結案 */
 const closed = c => CLOSED.has(c.status) || (D && (D.statuses || []).some(x => x && x.closed && x.name === c.status));
 const corrLeft = c => c.status === "補正" && c.statusAt ? diff(addDays(c.statusAt.slice(0, 10), 15), TODAY) : null;
@@ -134,6 +142,7 @@ const level = c => {
 const stText = c => {
   if (c.status === "補正") { const L = corrLeft(c); return L === null ? "補正" : L > 0 ? `補正・剩 ${L} 天` : L === 0 ? "補正・今天到期" : L >= -2 ? "補正・寬限中" : `補正・逾期 ${-L - 2} 天`; }
   if (c.sched && c.sched < TODAY && !closed(c)) return c.status ? `${c.status}・逾期` : "逾期未結";
+  if (c.status === "延期" && !c.postponedTo) return "延期・未排日期";
   return c.status || "未辦理";
 };
 /* 代理人電話：本地號碼補上苗栗區碼 037，手機原樣 */
@@ -205,14 +214,14 @@ function card(c){
   return `<div class="card ${lv}"${c.note ? ' data-x' : ""}>
     <div class="r1">${c.time ? `<span class="tm">${esc(c.time)}</span>` : ""}<span class="ty">${esc(c.type || "案件")}</span><span class="st ${lv}">${esc(st)}</span></div>
     <div class="r2">${esc(where || "（未填地段地號）")}</div>
-    <div class="r3">${c.applicant ? `<span>申請人 ${esc(c.applicant)}</span>` : ""}${c.no ? `<span>編號 ${esc(c.no)}</span>` : ""}${c.agent ? `<span>代理人 ${esc(c.agent)}${tel ? ` <a href="tel:${tel}">撥號</a>` : ""}</span>` : ""}${c.insp ? `<span>原排定 ${md(c.ref.sched)}${c.ref.time ? " " + esc(c.ref.time) : ""}</span>` : ""}</div>
+    <div class="r3">${appText(c) ? `<span>申請人 ${esc(appText(c))}</span>` : ""}${c.no ? `<span>編號 ${esc(c.no)}</span>` : ""}${c.agent ? `<span>代理人 ${esc(c.agent)}${tel ? ` <a href="tel:${tel}">撥號</a>` : ""}</span>` : ""}${c.insp ? `<span>原排定 ${md(c.ref.sched)}${c.ref.time ? " " + esc(c.ref.time) : ""}</span>` : ""}</div>
     ${c.note ? `<div class="note">${esc(c.note)}</div>` : ""}
   </div>`;
 }
 const match = c => {
   if (!q) return true;
   const sec = D.secMap.get(String(c.sec || ""));
-  return [c.type, c.applicant, c.agent, c.no, c.lot, c.sec, sec && sec.name, c.note, c.reason, c.leaveType, ...(c.subs || []).flatMap(x => [x.no, x.lot])].join(" ").toLowerCase().includes(q);
+  return [c.type, appText(c), c.agent, c.no, c.lot, c.sec, sec && sec.name, c.note, c.reason, c.leaveType, ...(c.subs || []).flatMap(x => [x.no, x.lot])].join(" ").toLowerCase().includes(q);
 };
 const sk = c => (c.sched || "9999") + (c.time || "99");
 
