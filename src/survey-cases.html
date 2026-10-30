@@ -205,14 +205,24 @@ tr.istoday td.dt .dpill::before{content:"今天";font-family:var(--f-ui);font-si
 tr.istoday td.dt .d > span{color:var(--tape-ink)}
 tr.istoday td.dt .tm.odd{display:inline-block;margin-top:2px;padding:1px 7px;border-radius:5px;background:var(--tape);color:#fff;font-weight:700;box-shadow:0 0 0 3px color-mix(in srgb,var(--tape) 22%,transparent)}
 tr.istoday td.dt .tm.odd::after{content:" 特別時段";font-family:var(--f-ui);font-size:10.5px;font-weight:600}
-/* 辦理情形整行底色：完成／撤回／駁回 淡綠、成圖 淡藍、補正 淡黃 */
-tr.tint-g td{background:color-mix(in srgb,var(--ok) 8%,var(--surface))}
-tr.tint-b td{background:color-mix(in srgb,#3b82f6 9%,var(--surface))}
-tr.tint-y td{background:color-mix(in srgb,#f5b800 13%,var(--surface))}
-tbody tr.tint-g:hover td{background:color-mix(in srgb,var(--ok) 15%,var(--surface))}
-tbody tr.tint-b:hover td{background:color-mix(in srgb,#3b82f6 16%,var(--surface))}
-tbody tr.tint-y:hover td{background:color-mix(in srgb,#f5b800 21%,var(--surface))}
+/* 辦理情形整行底色：顏色在常用資料的「辦理情形」設定（預設 完成／撤回／駁回 淡綠、成圖 淡藍、補正 淡黃） */
+tr.tint td{background:color-mix(in srgb,var(--tint) var(--tint-a,10%),var(--surface))}
+tbody tr.tint:hover td{background:color-mix(in srgb,var(--tint) calc(var(--tint-a,10%) + 7%),var(--surface))}
 /* 欄位順序 */
+.stack{display:flex;flex-direction:column;gap:inherit;min-width:0}
+.stlist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.stlist li{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:7px 8px 7px 10px;border:1px solid var(--line);border-left:5px solid var(--tint,var(--line));border-radius:8px;background:color-mix(in srgb,var(--tint,transparent) 10%,var(--surface))}
+.stlist b{min-width:64px;font-weight:600}
+.stlist .badge{font-size:11px;color:var(--ink-3);border:1px solid var(--line);border-radius:4px;padding:0 5px}
+.stlist .badge.cl{color:var(--ok);border-color:color-mix(in srgb,var(--ok) 45%,transparent)}
+.sw{display:inline-flex;gap:3px;margin-left:auto}
+.sw button{width:18px;height:18px;border-radius:50%;border:2px solid var(--surface);box-shadow:0 0 0 1px var(--line);background:var(--c);padding:0;cursor:pointer}
+.sw button[data-c=""]{background:repeating-linear-gradient(135deg,var(--surface) 0 3px,var(--line) 3px 4px)}
+.sw button[aria-pressed="true"]{box-shadow:0 0 0 2px var(--ink)}
+.stlist .mv{border:1px solid var(--line);background:var(--surface-2);border-radius:6px;width:26px;height:24px;cursor:pointer;color:var(--ink-2);padding:0}
+.stlist .mv:disabled{opacity:.35;cursor:default}
+.stadd{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.stgrid button[data-tint]{border-left:4px solid var(--tint)}
 .colord{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
 .colord li{display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface);cursor:grab;user-select:none}
 .colord li.fixed{cursor:default;color:var(--ink-3);background:var(--surface-2)}
@@ -558,7 +568,6 @@ tbody tr.insp:hover td{background:color-mix(in srgb,var(--lv-trip) 16%,var(--sur
           <input class="in grow" id="q" type="search" placeholder="搜尋申請人、代理人、地號、案件編號、地段、備註　（按 / 快速搜尋）">
           <select class="in" id="fType" aria-label="種類"></select>
           <select class="in" id="fStatus" aria-label="辦理情形">
-            <option value="">全部狀態</option><option value="__open">未結案</option><option value="__overdue">逾期未結</option><option value="__nonotice">通知未寄出</option><option>完成</option><option>補正</option><option>撤回</option><option>駁回</option><option>成圖</option><option>擴大檢測</option><option>現場抓點</option><option>詳備註</option><option>延期</option>
           </select>
           <label class="check"><input type="checkbox" id="fSlots" checked> 顯示空檔</label>
           <button class="btn" type="button" id="btnCols" title="調整排程表欄位的順序">欄位順序</button>
@@ -638,12 +647,26 @@ tbody tr.insp:hover td{background:color-mix(in srgb,var(--lv-trip) 16%,var(--sur
               <div class="toolbar"><button class="btn primary" type="submit" id="agSubmit">加入代理人</button><span style="font-size:12px;color:var(--ink-3)">點表格中的一列可修改</span></div>
             </form>
           </div>
+          <div class="stack">
           <div class="card">
             <div class="card-h"><h3>測量種類</h3><span class="meta" id="typeCount"></span></div>
             <div class="card-b">
               <div class="tags" id="typeTags"></div>
               <form class="toolbar" id="typeForm"><input class="in grow" id="typeNew" placeholder="新增種類"><button class="btn" type="submit">加入</button></form>
             </div>
+          </div>
+          <div class="card">
+            <div class="card-h"><h3>辦理情形</h3><span class="meta" id="stCount"></span></div>
+            <div class="card-b">
+              <span class="hint" style="font-size:12px">點色塊選排程表整行的強調色；↑ ↓ 調整選項順序。標「系統」的有特別功能（例如補正期限、延期流程），不能刪除，但可以換顏色。</span>
+              <ol class="stlist" id="stList"></ol>
+              <form class="stadd" id="stForm" autocomplete="off">
+                <input class="in grow" id="stNew" placeholder="新增辦理情形，例 已核定" maxlength="12">
+                <label class="check" title="勾選後，這個辦理情形算已結案，不會列入逾期"><input type="checkbox" id="stClosed"> 算結案</label>
+                <button class="btn" type="submit">加入</button>
+              </form>
+            </div>
+          </div>
           </div>
         </div>
       </section>
@@ -799,12 +822,18 @@ tbody tr.insp:hover td{background:color-mix(in srgb,var(--lv-trip) 16%,var(--sur
 (() => {
 const BUILD = "artifact";
 const TEST_BUILD = false; /* 打包測試版時改為 true：使用獨立的資料，不影響正式版 */
-const VERSION = "3.13.0";
+const VERSION = "3.14.0";
 /* 離線版檢查更新：讀取 GitHub 公開倉庫的版本檔，新版本以 zip 提供下載 */
 const UPDATE_URL = "https://raw.githubusercontent.com/gn01918004-hub/work-paper/main/release/version.json";
 const DOWNLOAD_URL = "https://github.com/gn01918004-hub/work-paper/raw/main/release/survey-schedule.zip";
 /* 更新紀錄（與 CHANGELOG.md 同步）：第一筆為目前版本 */
 const CHANGELOG = [
+  {v:"3.14.0", date:"2026-10-30", title:"辦理情形可自訂", items:[
+    "常用資料的測量種類下方新增「辦理情形」：可新增、刪除、調整順序，並選擇排程表整行的強調色（綠、藍、黃、橘、紅、紫、灰）",
+    "新增的辦理情形可勾選「算結案」，就不會列入逾期",
+    "內建的完成、補正、撤回、駁回、成圖、擴大檢測、現場抓點、詳備註有特別功能，不能刪除，但可以換顏色",
+    "編輯案件時，辦理情形按鈕左側會顯示它的強調色；排程表的狀態篩選也會列出新增的辦理情形",
+  ]},
   {v:"3.13.0", date:"2026-10-30", title:"排程表欄位可自訂順序、狀態整行上色、今天新標示", items:[
     "排程表新增「欄位順序」按鈕：可拖動或用 ↑ ↓ 自己排欄位，隨時可還原預設",
     "預設順序改為：種類、收件日期、案件編號、地段、地號、申請人、代理人…",
@@ -930,7 +959,20 @@ const SEED = null; /* 離線版打包時填入 data/seed.json（代理人通訊�
 
 /* ---------- 預設參考資料（來自「常用ID」工作表） ---------- */
 const DEFAULT_TYPES = ["鑑界","圖面分割","協助分割","現場分割","合併","新建","回復","滅失","基地號勘查","法院","界址調整","更正編定","再鑑定","自用住宅","地上權勘查","段界調整","預為分割","位置測量","門牌勘查","鑑界(協辦)"];
-const STATUSES = ["完成","補正","撤回","駁回","成圖","擴大檢測","現場抓點","詳備註"];
+/* 辦理情形：可在常用資料增刪、排序、選強調色（S.statuses）。內建的有特別功能，不能刪除 */
+const SYS_STATUS = {"完成":"green", "補正":"yellow", "撤回":"green", "駁回":"green", "成圖":"blue", "擴大檢測":"", "現場抓點":"", "詳備註":""};
+const TINTS = {"":["無",""], green:["綠","#16a34a"], blue:["藍","#3b82f6"], yellow:["黃","#f5b800"], orange:["橘","#f97316"], red:["紅","#e11d48"], purple:["紫","#a855f7"], gray:["灰","#64748b"]};
+const TINT_A = {yellow:"13%", gray:"9%"};   // 黃色淡色時不明顯，濃度高一點
+function statusList(){
+  const own = (S.statuses || []).filter(x => x && x.name);
+  const names = new Set(own.map(x => x.name));
+  return [...own.map(x => ({name:x.name, color:TINTS[x.color] ? x.color : "", closed:!SYS_STATUS.hasOwnProperty(x.name) && !!x.closed, sys:SYS_STATUS.hasOwnProperty(x.name)})),
+    ...Object.keys(SYS_STATUS).filter(n => !names.has(n)).map(n => ({name:n, color:SYS_STATUS[n], closed:false, sys:true}))];
+}
+const STATUSES_NOW = () => statusList().map(x => x.name);
+const tintOf = name => { const x = statusList().find(y => y.name === name); return x && x.color ? x.color : ""; };
+const tintAttr = name => { const k = tintOf(name); return k ? ` style="--tint:${TINTS[k][1]};--tint-a:${TINT_A[k] || "10%"}"` : ""; };
+const customClosed = name => statusList().some(x => x.name === name && x.closed);
 const PP = "延期";
 const STAMPED = new Set(["完成","補正","駁回","撤回"]); /* 選這些辦理情形時，自動把當下日期時間寫入備註 */
 const STAMP_RE = /^【(完成|補正|駁回|撤回) [^】]*】\n?/;
@@ -975,7 +1017,7 @@ const md = s => s ? `${parseISO(s).getMonth()+1}/${pad(parseISO(s).getDate())}` 
 const dow = s => DOW[parseISO(s).getDay()];
 const mLabel = k => `${Number(k.slice(5))}月`;
 const isLeave = c => c.kind === "leave";
-const isClosed = c => DONE.has(c.status) || STOPPED.has(c.status) || c.status === PP || c.status === "擴大檢測" || isLeave(c);
+const isClosed = c => DONE.has(c.status) || STOPPED.has(c.status) || c.status === PP || c.status === "擴大檢測" || isLeave(c) || customClosed(c.status);
 /* 補正期限：補正日隔日起算第 15 日到期（補正日 + 15 天），到期後再寬限 2 天，之後才算逾期 */
 const CORR_DAYS = 15, CORR_GRACE = 2;
 const dayDiff = (a, b) => Math.round((parseISO(a) - parseISO(b)) / 864e5);
@@ -1024,7 +1066,7 @@ function localLoad(){
   } catch(e){}
 }
 function localSave(){ try { localStorage.setItem(LS, JSON.stringify({cases:[...S.cases.values()], ...listsBody()})); } catch(e){ toast("瀏覽器儲存空間不足，請先下載備份"); } abSchedule(); }
-const listsBody = () => ({agents:S.agents, types:S.types, sections:S.sections, months:S.months, migrations:S.migrations, ms:S.ms, msSeen:S.msSeen, cols:S.cols});
+const listsBody = () => ({agents:S.agents, types:S.types, sections:S.sections, months:S.months, migrations:S.migrations, ms:S.ms, msSeen:S.msSeen, cols:S.cols, statuses:S.statuses});
 function applyLists(d){
   if (!d) return;
   if (d.agents) S.agents = d.agents.map(a => ({...a}));
@@ -1034,6 +1076,7 @@ function applyLists(d){
   if (d.migrations) S.migrations = [...d.migrations];
   if (d.ms) S.ms = {...d.ms};
   if (Array.isArray(d.cols)) S.cols = [...d.cols];
+  if (Array.isArray(d.statuses)) S.statuses = d.statuses.map(x => ({...x}));
   if (d.msSeen) S.msSeen = [...d.msSeen];
   rebuild();
 }
@@ -1195,6 +1238,9 @@ function render(){
 function renderSelects(){
   const ft = $("#fType"), cur = ft.value;
   ft.innerHTML = `<option value="">全部種類</option>` + S.types.map(t => `<option${t===cur?" selected":""}>${esc(t)}</option>`).join("");
+  const fs = $("#fStatus"), fcur = S.fStatus;
+  fs.innerHTML = [["", "全部狀態"], ["__open", "未結案"], ["__overdue", "逾期未結"], ["__nonotice", "通知未寄出"], ...[...STATUSES_NOW(), PP].map(n => [n, n])]
+    .map(([v, t]) => `<option value="${esc(v)}"${v === fcur ? " selected" : ""}>${esc(t)}</option>`).join("");
   $("#dlAgents").innerHTML = S.agents.map(a => `<option value="${esc(a.name)}">`).join("");
   $("#dlSections").innerHTML = S.sections.map(s => `<option value="${esc(s.code)}">${esc(s.town)} ${esc(s.name)}</option>`).join("");
   $("#dlTowns").innerHTML = [...new Set(S.sections.map(s => s.town))].map(t => `<option value="${esc(t)}">`).join("");
@@ -1340,7 +1386,6 @@ function cellsHTML(map, fill = ""){
   return out;
 }
 const secCell = c => { const s = secOf(c); return `<td>${s ? `${esc(s.name)}<span class="sub">${esc(s.town)}・<span class="num">${esc(c.sec)}</span></span>` : c.sec ? `<span class="num">${esc(c.sec)}</span><span class="sub" style="color:var(--crit)">查無代碼</span>` : ""}</td>`; };
-const TINT = {"完成":"tint-g", "撤回":"tint-g", "駁回":"tint-g", "成圖":"tint-b", "補正":"tint-y"};
 const ODD_TIME = t => t && t !== "09:00" && t !== "14:00";
 const dateCell = c => `<td class="dt"><div class="dpill">${c.sched ? `<div class="d">${md(c.sched)}<span>週${dow(c.sched)}</span></div>${c.time ? `<small class="tm${c.sched === TODAY && !isLeave(c) && ODD_TIME(c.time) ? " odd" : ""}">${esc(c.time)}</small>` : ""}` : `<span>未排</span>`}</div></td>`;
 
@@ -1358,7 +1403,7 @@ function rowHTML(c){
     status:`<td><span class="st lv">${esc(c.leaveType)}</span></td>`, note:`<td class="note">${esc(c.note)}</td>`,
   }, esc(c.reason || c.leaveType)) + `</tr>`;
   const sc = stClass(c);
-  return `<tr class="s-${sc==="over"?"todo":sc}${isOver(c)?" over":""}${TINT[c.status] ? " " + TINT[c.status] : ""}${c.sched === TODAY ? " istoday" : ""}" data-id="${c.id}" data-d="${c.sched||""}">${dcell}` + cellsHTML({
+  return `<tr class="s-${sc==="over"?"todo":sc}${isOver(c)?" over":""}${tintOf(c.status) ? " tint" : ""}${c.sched === TODAY ? " istoday" : ""}" data-id="${c.id}" data-d="${c.sched||""}"${tintAttr(c.status)}>${dcell}` + cellsHTML({
     type:`<td><b>${esc(c.type)}</b>${lkN(c) ? `<span class="lkb">連件 ${lkN(c) + 1}</span>` : ""}</td>`,
     recv:`<td class="num">${md(c.recv)}</td>`, no:`<td class="num">${esc(c.no)}${lkChip(c)}</td>`, sec:secCell(c),
     lot:`<td class="num">${esc(c.lot)}${lkChip(c)}</td>`, applicant:`<td>${esc(c.applicant)}</td>`, agent:`<td>${esc(c.agent)}</td>`,
@@ -1530,6 +1575,18 @@ function renderRef(){
     : `<tr><td colspan="6" class="empty">還沒有代理人。用下方欄位加入，新增案件時就能直接選。</td></tr>`;
   $("#typeCount").textContent = `${S.types.length} 種`;
   $("#typeTags").innerHTML = S.types.map((t,i) => `<span class="tag">${esc(t)}<button type="button" data-del-type="${i}" aria-label="移除 ${esc(t)}">×</button></span>`).join("");
+  const sl = statusList(), used = {}; all().forEach(c => { if (c.status) used[c.status] = (used[c.status] || 0) + 1; });
+  $("#stCount").textContent = `${sl.length} 種`;
+  $("#stList").innerHTML = sl.map((x, i) => `<li data-st="${esc(x.name)}"${x.color ? tintAttr(x.name) : ""}>
+    <b>${esc(x.name)}</b>${x.sys ? `<span class="badge">系統</span>` : ""}${x.closed ? `<span class="badge cl">算結案</span>` : ""}${used[x.name] ? `<span class="badge">${used[x.name]} 件</span>` : ""}
+    <span class="sw" role="group" aria-label="${esc(x.name)} 的強調色">${Object.entries(TINTS).map(([k, [t, hex]]) => `<button type="button" data-c="${k}" style="--c:${hex || "transparent"}" title="${t}" aria-label="${t}" aria-pressed="${x.color === k}"></button>`).join("")}</span>
+    <button class="mv" type="button" data-mv="-1" aria-label="${esc(x.name)} 上移" ${i ? "" : "disabled"}>↑</button><button class="mv" type="button" data-mv="1" aria-label="${esc(x.name)} 下移" ${i < sl.length - 1 ? "" : "disabled"}>↓</button>
+    ${x.sys ? `<span style="width:40px"></span>` : `<button class="rowbtn" type="button" data-del-st aria-label="刪除 ${esc(x.name)}">刪除</button>`}</li>`).join("");
+}
+async function saveStatuses(list){
+  S.statuses = list.map(x => x.sys ? {name:x.name, color:x.color} : {name:x.name, color:x.color, closed:!!x.closed});
+  render();
+  try { await saveLists(); } catch(e){ writeFailed(e); }
 }
 
 /* ---------- 案件抽屜 ---------- */
@@ -1541,8 +1598,8 @@ const drawNotice = () => seg($("#noticeSeg"), NOTICES, S.notice, v => { S.notice
 function drawInst(){ $("#instSeg").innerHTML = INSTS.map(o => `<button type="button" aria-pressed="${S.inst.includes(o)}" data-v="${o}">${o}</button>`).join(""); }
 function drawLv(){ $("#lvSeg").innerHTML = Object.entries(LEAVES).map(([k,cl]) => `<button type="button" class="${cl}" aria-pressed="${k===S.lv}" data-v="${k}"><span class="dot"></span>${k}</button>`).join(""); if (S.kind === "leave") drawReadout(); }
 function drawStatus(){
-  const list = S.status && !STATUSES.includes(S.status) ? [...STATUSES, S.status] : STATUSES;
-  $("#statusGrid").innerHTML = list.map(s => `<button type="button" class="${DONE.has(s)?"done":s===PP?"pp":""}" aria-pressed="${s===S.status}" data-v="${esc(s)}">${esc(s)}</button>`).join("");
+  const names = STATUSES_NOW(), list = S.status && !names.includes(S.status) ? [...names, S.status] : names;
+  $("#statusGrid").innerHTML = list.map(s => `<button type="button" class="${DONE.has(s)?"done":s===PP?"pp":""}" aria-pressed="${s===S.status}" data-v="${esc(s)}"${tintOf(s) ? ` data-tint${tintAttr(s)}` : ""}>${esc(s)}</button>`).join("");
 }
 /* 現場抓點、擴大檢測的日期時間欄位：選了該辦理情形才顯示；已擴大檢測過的紀錄不再顯示 */
 function stRows(){
@@ -2555,6 +2612,28 @@ $("#typeForm").onsubmit = async e => {
   e.preventDefault(); const t = $("#typeNew").value.trim();
   if (!t || S.types.includes(t)) return; S.types.push(t); $("#typeNew").value = "";
   try { await saveLists(); } catch(err){ writeFailed(err); }
+};
+$("#stList").onclick = e => {
+  const li = e.target.closest("li[data-st]"); if (!li) return;
+  const list = statusList(), i = list.findIndex(x => x.name === li.dataset.st); if (i < 0) return;
+  const sw = e.target.closest("[data-c]"), mv = e.target.closest("[data-mv]");
+  if (sw) { list[i].color = sw.dataset.c; saveStatuses(list); return; }
+  if (mv) { const j = i + Number(mv.dataset.mv); if (j < 0 || j >= list.length) return; [list[i], list[j]] = [list[j], list[i]]; saveStatuses(list);
+    requestAnimationFrame(() => $(`#stList li[data-st="${CSS.escape(li.dataset.st)}"] [data-mv="${mv.dataset.mv}"]`)?.focus()); return; }
+  if (e.target.closest("[data-del-st]")) {
+    const n = all().filter(c => c.status === list[i].name).length;
+    if (n && !confirm(`有 ${n} 件案件的辦理情形是「${list[i].name}」。\n刪除後這些案件仍保留原本的文字，只是選單裡不再出現。確定刪除？`)) return;
+    list.splice(i, 1); saveStatuses(list); toast(`已刪除「${li.dataset.st}」`);
+  }
+};
+$("#stForm").onsubmit = e => {
+  e.preventDefault();
+  const name = $("#stNew").value.trim().replace(/\s+/g, ""); if (!name) return;
+  const list = statusList();
+  if (list.some(x => x.name === name) || name === PP) { toast(`「${name}」已經有了`); return; }
+  list.push({name, color:"", closed:$("#stClosed").checked, sys:false});
+  $("#stNew").value = ""; $("#stClosed").checked = false;
+  saveStatuses(list); toast(`已加入「${name}」，可點色塊選強調色`);
 };
 $("#typeTags").onclick = async e => { const b = e.target.closest("[data-del-type]"); if (!b) return; S.types.splice(Number(b.dataset.delType), 1); try { await saveLists(); } catch(err){ writeFailed(err); } };
 

@@ -123,15 +123,17 @@ let TODAY = iso(new Date());
 const CLOSED = new Set(["完成", "撤回", "駁回", "延期", "擴大檢測"]);
 const LV = {"休假":"--lv-off", "出差":"--lv-trip", "上課":"--lv-class"};
 const isLeave = c => c.kind === "leave";
+/* 電腦版 v3.14.0 起可自訂辦理情形；勾了「算結案」的也當結案 */
+const closed = c => CLOSED.has(c.status) || (D && (D.statuses || []).some(x => x && x.closed && x.name === c.status));
 const corrLeft = c => c.status === "補正" && c.statusAt ? diff(addDays(c.statusAt.slice(0, 10), 15), TODAY) : null;
 const level = c => {
   if (c.status === "補正") { const L = corrLeft(c); return L === null ? "prog" : L < -2 ? "over" : L < 3 ? "soon" : "prog"; }
-  if (c.sched && c.sched < TODAY) return "over";
+  if (c.sched && c.sched < TODAY && !closed(c)) return "over";
   return c.status ? "prog" : "todo";
 };
 const stText = c => {
   if (c.status === "補正") { const L = corrLeft(c); return L === null ? "補正" : L > 0 ? `補正・剩 ${L} 天` : L === 0 ? "補正・今天到期" : L >= -2 ? "補正・寬限中" : `補正・逾期 ${-L - 2} 天`; }
-  if (c.sched && c.sched < TODAY) return c.status ? `${c.status}・逾期` : "逾期未結";
+  if (c.sched && c.sched < TODAY && !closed(c)) return c.status ? `${c.status}・逾期` : "逾期未結";
   return c.status || "未辦理";
 };
 /* 代理人電話：本地號碼補上苗栗區碼 037，手機原樣 */
@@ -182,7 +184,7 @@ function accept(text, quiet){
   let o;
   try { o = JSON.parse(text); } catch(e){ toast("讀不到這個檔案，請選 survey-backup-latest.json"); return; }
   if (!o || !Array.isArray(o.cases)) { toast("這不是測量案件排程的備份檔"); return; }
-  D = {at:o.exportedAt || new Date().toISOString(), cases:o.cases, sections:o.sections || [], agents:o.agents || []};
+  D = {at:o.exportedAt || new Date().toISOString(), cases:o.cases, sections:o.sections || [], agents:o.agents || [], statuses:o.statuses || []};
   try { localStorage.setItem(KEY, JSON.stringify(D)); } catch(e){ toast("手機儲存空間不足，這次看完不會保留"); }
   if (!quiet) toast(`已載入 ${D.cases.filter(c => !isLeave(c)).length} 件案件`);
   view = "list"; render();
@@ -302,7 +304,7 @@ function render(){
   const w = $("#when"); w.textContent = `資料：${at.getMonth() + 1}/${at.getDate()} ${pad(at.getHours())}:${pad(at.getMinutes())}${age >= 1 ? `（${age} 天前）` : ""}`; w.classList.toggle("stale", age >= 2);
   $("#ctl").hidden = false;
   const cases = D.cases.filter(c => !isLeave(c));
-  const open = cases.filter(c => !CLOSED.has(c.status));
+  const open = cases.filter(c => !closed(c));
   $("#nOpen").textContent = open.length; $("#nOpen").hidden = !open.length;
   document.querySelectorAll(".tabs button").forEach(b => b.setAttribute("aria-pressed", b.dataset.tab === tab));
   let html = "";
