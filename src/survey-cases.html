@@ -455,6 +455,8 @@ a.btn{text-decoration:none}
 .nofield{display:flex;gap:6px}
 .nofield .in{flex:1}
 .lkbox{display:flex;flex-direction:column;gap:8px;border:1px solid var(--line);border-radius:10px;padding:10px;background:var(--surface-2)}
+.lkcount{display:inline-flex;align-items:center;gap:6px;font-size:13px}
+.lkcount .in{width:64px;padding:4px 6px}
 .lkrow{display:grid;grid-template-columns:22px minmax(0,1.1fr) minmax(0,1fr) minmax(0,.8fr) minmax(0,.9fr) auto auto;gap:6px;align-items:center}
 .lkrow .in{padding:6px 8px;font-size:13px}
 .lkrow .lkn{font-family:var(--f-num);font-weight:700;color:var(--ink-3);text-align:center}
@@ -736,7 +738,7 @@ tbody tr.insp:hover td{background:color-mix(in srgb,var(--lv-trip) 16%,var(--sur
     <div class="f" data-for="case"><label for="cWord">收件字</label><input class="in" id="cWord" list="dlWords" placeholder="輸入 81 或從清單選擇" autocomplete="off"></div>
     <div class="f" data-for="case"><label for="cNo">案件編號</label><div class="nofield"><input class="in num" id="cNo" inputmode="numeric"><button class="btn sm" type="button" id="addLink" title="加入連件">＋ 連件</button></div></div>
     <div class="f full" data-for="case" id="linkBox" hidden><span class="lb">連件（共用申請人、代理人、收件、排定日期時間、通知、儀器、辦理情形、備註）</span>
-      <div class="lkbox"><div id="linkList"></div><div class="toolbar"><button class="btn sm" type="button" id="addLink2">＋ 再加一件</button><span class="lkhint">第 1 件為上方的主件；「拆件」會把該件變成獨立案件</span></div></div></div>
+      <div class="lkbox"><div id="linkList"></div><div class="toolbar"><label class="lkcount"><span id="lkLbl">共連件</span> <input class="in num" type="number" id="lkN" min="1" max="30" value="1" aria-label="件數"> 件</label><button class="btn sm" type="button" id="addLink2">產生連件</button><span class="lkhint">案號自動遞增：建物（收件字 82）每件 +10，其他每件 +100，產生後可修改；第 1 件為上方的主件；「拆件」會把該件變成獨立案件</span></div></div></div>
     <div class="f full" data-for="case"><span class="lb">通知狀態</span><div class="seg" id="noticeSeg"></div></div>
     <div class="f full" data-for="case"><span class="lb">儀器（可複選）</span><div class="seg" id="instSeg"></div></div>
     <div class="f full" data-for="case"><span class="lb">辦理情形</span><div class="stgrid" id="statusGrid"></div></div>
@@ -862,12 +864,18 @@ tbody tr.insp:hover td{background:color-mix(in srgb,var(--lv-trip) 16%,var(--sur
 (() => {
 const BUILD = "artifact";
 const TEST_BUILD = false; /* 打包測試版時改為 true：使用獨立的資料，不影響正式版 */
-const VERSION = "3.18.0";
+const VERSION = "3.19.0";
 /* 離線版檢查更新：讀取 GitHub 公開倉庫的版本檔，新版本以 zip 提供下載 */
 const UPDATE_URL = "https://raw.githubusercontent.com/gn01918004-hub/work-paper/main/release/version.json";
 const DOWNLOAD_URL = "https://github.com/gn01918004-hub/work-paper/raw/main/release/survey-schedule.zip";
 /* 更新紀錄（與 CHANGELOG.md 同步）：第一筆為目前版本 */
 const CHANGELOG = [
+  {v:"3.19.0", date:"2026-10-31", title:"延期前後連動、取消延期、連件依件數產生", items:[
+    "延期前後的案件欄位互相連動：改其中一件的種類、收件、案件編號、地段地號、申請人、法院欄位、代理人、連件，另一件跟著改；日期時間、辦理情形、通知、儀器、備註各自獨立",
+    "延期後的新案件「刪除」改為「取消延期」（刪除新案件、原案件恢復）；延期的原案件也可取消延期；改新案件的日期，原案件記錄的「延期至」會跟著更新",
+    "同步：Map-Scheduler 取消延期時，比對視窗會提示「取消延期」；Map-Scheduler 改了延期日期或欄位，套用後原案件也會跟著更新",
+    "連件可填件數一次產生，種類、段代碼沿用主件，案件編號自動遞增（建物／收件字 82 每件 +10，其他每件 +100），產生後仍可修改",
+  ]},
   {v:"3.18.0", date:"2026-10-30", title:"同步 Map-Scheduler 的連件", items:[
     "配合 Map-Scheduler 新增的連件功能，案件同步會一併帶入連件（案件編號、種類、地段、地號）",
     "已匯入的案件在 Map-Scheduler 加了或改了連件：本系統沒有連件的直接補上，兩邊不同時列在比對視窗讓你選",
@@ -1763,7 +1771,7 @@ function openDrawer(c, preset = {}){
   $("#cCourtDiv").value = v.courtDiv || ""; $("#cCourtNo").value = v.courtNo || ""; $("#cWord").value = v.word || v.extWord || "";
   $("#cPpReason").value = v.ppReason || ""; $("#cPpDate").value = v.postponedToDate || ""; $("#cPpTime").value = v.postponedToTime || "";
   $("#cAgent").value = v.agent || ""; $("#cReason").value = v.reason || ""; $("#cNote").value = v.note || "";
-  S.subs = subsOf(v).map(x => ({...x})); drawLinks();
+  S.subs = subsOf(v).map(x => ({...x})); S.lkOpen = false; $("#lkN").value = 1; drawLinks();
   S.notice = v.notice || ""; S.inst = [...(v.inst || [])]; S.status = isLeave(v) ? "" : (v.status || ""); S.lv = v.leaveType || "休假";
   $("#cStampAt").value = v.statusAt || ""; $("#stampRow").hidden = !STAMPED.has(S.status); corrInfo();
   $("#cInspDate").value = (v.inspectAt || "").slice(0,10); $("#cInspTime").value = (v.inspectAt || "").slice(11,16);
@@ -1771,7 +1779,7 @@ function openDrawer(c, preset = {}){
   drawNotice(); drawInst(); drawStatus(); drawLv(); agentHint(); setKind(v.kind || "case");
   const lk = c ? linkHTML(c) : "", lr = $("#linkRow"); lr.innerHTML = lk; lr.hidden = !lk;
   courtUI();
-  $("#delWrap").innerHTML = c ? `<button class="btn danger" type="button" id="dDelete">刪除</button>` : "";
+  $("#delWrap").innerHTML = delButtons(c);
   $("#scrim").hidden = false; $("#drawer").hidden = false;
   setTimeout(() => (S.kind === "leave" ? $("#cSched") : $("#cType")).focus(), 40);
 }
@@ -1818,7 +1826,7 @@ async function submitDrawer(){
   if (c._postpone) { const {nd, nt} = c._postpone; delete c._postpone; closeDrawer(); return postponeTo(c, nd, nt); }
   const isNew = !c.id;
   closeDrawer();
-  try { await saveCase(c); toast(ppPending(c) ? "已標為延期，尚未排定延期日期（之後打開這件即可補上）" : isNew ? "已新增" : "已更新"); if (c.sched && S.view === "list" && !filtering()) { ensureRange(c.sched); renderList(); } }
+  try { await saveCase(c); if (c.postponedFrom || c.postponedTo) await syncPpChain(c.id); toast(ppPending(c) ? "已標為延期，尚未排定延期日期（之後打開這件即可補上）" : isNew ? "已新增" : "已更新"); if (c.sched && S.view === "list" && !filtering()) { ensureRange(c.sched); renderList(); } }
   catch(e){ writeFailed(e); }
 }
 /* ---------- 延期便簽 ---------- */
@@ -1859,6 +1867,37 @@ function closeNote(){ if ($("#notedlg").hidden) return; $("#notedlg").hidden = t
 $("#noteClose").onclick = closeNote;
 $("#notePrint").onclick = () => { $("#printRoot").innerHTML = `<div class="a4">${$("#noteSheet").innerHTML}</div>`; window.print(); };
 addEventListener("afterprint", () => { $("#printRoot").innerHTML = ""; });
+
+/* 延期前後的案件互相連動：共用欄位一起改，彼此記錄的日期時間跟著更新（日期時間、辦理情形、通知、儀器、備註各自獨立） */
+const PP_SYNC = ["type", "recv", "word", "no", "sec", "lot", "applicant", "courtDiv", "courtNo", "agent", "subs"];
+async function syncPpChain(id){
+  const src = S.cases.get(id); if (!src) return 0;
+  const chain = new Set([id]);
+  for (let grew = true; grew; ) { grew = false;
+    for (const cid of [...chain]) { const c = S.cases.get(cid); for (const n of [c.postponedFrom, c.postponedTo]) if (n && S.cases.has(n) && !chain.has(n)) { chain.add(n); grew = true; } } }
+  let n = 0;
+  for (const cid of chain) {
+    const c = S.cases.get(cid), to = c.postponedTo && S.cases.get(c.postponedTo), from = c.postponedFrom && S.cases.get(c.postponedFrom);
+    const patch = cid === id ? {} : Object.fromEntries(PP_SYNC.map(f => [f, f === "subs" ? (src.subs ? src.subs.map(x => ({...x})) : undefined) : src[f]]));
+    if (to) Object.assign(patch, {postponedToDate:to.sched || "", postponedToTime:to.time || ""});
+    if (from) Object.assign(patch, {postponedFromDate:from.sched || "", postponedFromTime:from.time || ""});
+    if (Object.entries(patch).every(([k, v]) => JSON.stringify(c[k] ?? null) === JSON.stringify(v ?? null))) continue;
+    await saveCase(tidy({...c, ...patch})); if (cid !== id) n++;
+  }
+  return n;
+}
+/* 取消延期：刪除延期後的新案件，原案件恢復（新案件又再延期時不處理） */
+async function cancelLocalPp(c){
+  const orig = c.postponedFrom && c.status !== PP ? S.cases.get(c.postponedFrom) : c;
+  if (!orig) return false;
+  const copy = orig.postponedTo && S.cases.get(orig.postponedTo);
+  if (copy && copy.postponedTo) { toast("延期後的新案件又再延期了，請先取消後面的延期"); return false; }
+  if (copy) await deleteCase(copy.id);
+  const o = {...orig, status:""};
+  ["ppReason","postponedTo","postponedToDate","postponedToTime","extPp","extPpTo","extPpSeen","extPpCancelSeen"].forEach(k => delete o[k]);
+  await saveCase(o);
+  return true;
+}
 
 /* 延期：原案件改成「延期」留在原日期，並複製一筆到延期日期（辦理情形清空、通知改未寄出），兩筆互相連結 */
 async function postponeTo(cur, nd, nt){
@@ -2254,7 +2293,7 @@ function msToCase(x){
       sec:p.sec, lot:p.lot, applicant:x.owner || "", courtDiv:x.courtDivision || "", courtNo:x.courtDocNo || "", word:x.receiveWord || "",
       agent:x.agent || "", notice:"", inst:[], status:"", note:notes,
       extId:x.id, extSrc:MS_SRC, extNo:n.full, extWord:n.word, surveyor:x.surveyor || "",
-      ...(x.status === PP ? {status:PP, ppReason:x.postponeReason || "", extPpTo:x.postponedToId || ""} : {}),
+      ...(x.status === PP ? {status:PP, ppReason:x.postponeReason || "", extPpTo:x.postponedToId || "", extPp:true} : {}),
       ...(Array.isArray(x.subs) && x.subs.length ? {subs:x.subs.filter(y => y && (y.caseNumber || y.landParcel)).map(y => { const q = msParseParcel(y.landParcel);   // Map-Scheduler v2.17.0 連件
         return {no:String(y.caseNumber || "").trim(), type:normType(y.caseType || ""), sec:q.sec, lot:q.ok ? q.lot : String(y.landParcel || "")}; })} : {})},
     warn:[!n.ok && x.caseNumber ? "案號格式不同，原樣放入案件編號" : "", !p.ok && x.landParcel ? "找不到地段，原文放在備註" : "",
@@ -2280,13 +2319,19 @@ let msPending = [], msChgPending = [];
    對方清空的欄位不處理；使用者自己改過、對方沒再變動的欄位不提示（比對上次看到的值 extVals） */
 function msChanges(mine, list = mine){
   const byExt = new Map(), ppWait = new Map(), msById = new Map(list.filter(x => x && x.id).map(x => [x.id, x]));
+  const ppLocal = new Map();   // 本系統延期的原案件（含已排日期的）
   all().forEach(c => {
     if (!c.extId || isLeave(c)) return;
+    if (c.status === PP && !c.postponedFrom) ppLocal.set(c.extId, c);
     if (c.status !== PP && c.status !== EXP) byExt.set(c.extId, c);   // 延期、擴大檢測後以新的那筆為準
     else if (c.status === PP && !c.postponedTo) ppWait.set(c.extId, c);   // 本系統已延期、還沒排日期
   });
   const out = [], auto = [];
   for (const x of mine) {
+    /* Map-Scheduler 那邊的延期狀態：記下對方也延期了；對方取消延期時提示 */
+    const o = ppLocal.get(x.id);
+    if (o && x.status === PP && !o.extPp) auto.push({c:o, fill:{}, patch:{extPp:true}, vals:o.extVals || {}});
+    if (o && x.status !== PP && o.extPp && !o.extPpCancelSeen) { out.push({x, c:o, ppCancel:true, dateOnly:true, fields:[], fill:{}, vals:o.extVals || {}}); continue; }
     /* Map-Scheduler 替「本系統已延期、未排日期」的案件排了延期日期 */
     const w = ppWait.get(x.id), to = x.postponedToId ? msById.get(x.postponedToId) : null;
     if (w && to && w.extPpSeen !== to.id) { out.push({x, c:w, pp:{to, reason:x.postponeReason || w.ppReason || ""}, dateOnly:true, fields:[], fill:{}, vals:w.extVals || {}}); continue; }
@@ -2316,7 +2361,7 @@ function msChanges(mine, list = mine){
 }
 /* 套用 Map-Scheduler 的延期：原案件改「延期」；對方有新案件時，複製一筆到新日期並對應到對方的新案件 */
 async function msApplyPostpone(c, pp){
-  const orig = {...c, status:PP, ppReason:pp.reason || c.ppReason || ""};
+  const orig = {...c, status:PP, ppReason:pp.reason || c.ppReason || "", extPp:true};
   if (!pp.to) { await saveCase(orig); return; }
   const n = msToCase(pp.to).c;
   if (!orig.id) orig.id = genId();
@@ -2340,7 +2385,11 @@ async function msRelink(){
 /* 只需要補空白欄位、或只更新記錄的那幾件：直接存，不提示 */
 async function msAutoFill(auto){
   let n = 0;
-  for (const a of auto) { const filled = Object.keys(a.fill).length; if (filled) n++; await saveCase({...a.c, ...a.fill, ...(a.patch || {}), extVals:a.vals}); }
+  for (const a of auto) {
+    const filled = Object.keys(a.fill).length; if (filled) n++;
+    await saveCase({...a.c, ...a.fill, ...(a.patch || {}), extVals:a.vals});
+    if (filled && (a.c.postponedFrom || a.c.postponedTo)) await syncPpChain(a.c.id);
+  }
   return n;
 }
 const whenTxt = (d, t) => d ? `${md(d)}（週${dow(d)}）${t ? " " + esc(t) : ""}` : "未排";
@@ -2350,7 +2399,8 @@ function openMsChg(list){
   $("#mscRows").innerHTML = list.map((f, i) => { const c = f.c, s = secOf(c);
     const ppTo = f.pp && f.pp.to ? msToCase(f.pp.to).c : null;
     const ppTxt = f.pp ? `${f.dateOnly ? "延期日期 " : "延期"}${ppTo ? ` 至 ${whenTxt(ppTo.sched, ppTo.time)}` : "（未排日期）"}${f.pp.reason ? `・${esc(f.pp.reason)}` : ""}` : "";
-    const lines = [...(f.dateChanged ? [["排定", whenTxt(c.sched, c.time), whenTxt(f.sched, f.time)]] : []), ...(f.pp ? [["辦理情形", esc(stText(c)), ppTxt]] : []), ...f.fields.map(d => [d.label, esc(fieldTxt(d.f, d.from)), esc(fieldTxt(d.f, d.to))])];
+    const lines = [...(f.dateChanged ? [["排定", whenTxt(c.sched, c.time), whenTxt(f.sched, f.time)]] : []), ...(f.pp ? [["辦理情形", esc(stText(c)), ppTxt]] : []),
+      ...(f.ppCancel ? [["辦理情形", esc(stText(c)), "取消延期（Map-Scheduler 已取消）"]] : []), ...f.fields.map(d => [d.label, esc(fieldTxt(d.f, d.from)), esc(fieldTxt(d.f, d.to))])];
     return `<tr><td><b>${esc(c.type)}</b><span class="sub">${esc(s ? s.name : c.sec || "")} ${esc(c.lot || "")}・${esc(appText(c))}</span></td><td class="num">${esc(c.no || "")}</td>
       <td>${lines.map(([k, a]) => `<div class="chg"><span class="k">${k}</span>${a}</div>`).join("")}</td><td style="color:var(--gnss);font-weight:700">${lines.map(([k, , b]) => `<div class="chg"><span class="k">${k}</span>→ ${b}</div>`).join("")}</td>
       <td><select class="cellsel" data-i="${i}" aria-label="第 ${i + 1} 件"><option value="apply" selected>改成新的</option><option value="keep">保留目前</option></select></td></tr>`; }).join("");
@@ -2367,8 +2417,10 @@ async function mscGo(){
       const patch = apply ? {...(f.dateChanged ? {sched:f.sched, time:f.time} : {}), ...Object.fromEntries(f.fields.map(d => [d.f, msFieldVal(d.f, d.to)]))} : {};
       const keep = f.dateOnly ? {} : {extSched:f.sched, extTime:f.time, extVals:f.vals};   // 記下對方最新的值，同一次變更不會再提示；空白欄位一律補上
       const base = {...f.c, ...f.fill, ...patch, ...keep};
+      if (f.ppCancel) { if (apply) await cancelLocalPp(f.c); else await saveCase({...f.c, extPpCancelSeen:true}); continue; }
       if (f.pp && apply) await msApplyPostpone(base, f.pp);
       else await saveCase(f.pp ? {...base, extPpSeen:f.pp.to ? f.pp.to.id : "pending"} : base);   // 不採用 Map-Scheduler 的延期：記下來，不再詢問
+      if (S.cases.get(base.id) && (base.postponedFrom || base.postponedTo)) await syncPpChain(base.id);   // 新案件改了，原案件跟著改
     }
     toast(`已更新 ${n} 件${msChgPending.length - n ? `，保留 ${msChgPending.length - n} 件` : ""}`);
   } catch(e){ writeFailed(e); }
@@ -2626,8 +2678,9 @@ $("#linkRow").onclick = e => { const g = e.target.closest("[data-goto]"); if (g)
 $("#cType").addEventListener("change", courtUI);
 $("#cWord").addEventListener("input", e => { if (e.inputType && e.inputType.startsWith("delete")) return; const v = e.target.value.trim(); if (/^\d{2}$/.test(v)) { const w = ["80通數土","81通圖土","82通建"].find(x => x.startsWith(v)); if (w) e.target.value = w; } });
 $("#btnNote").onclick = () => { const c = collectForm(); if (c) { delete c._postpone; delete c._expand; openNote(c); } };
-$("#addLink").onclick = () => { if (S.subs.length) { $("#linkBox").scrollIntoView({block:"nearest"}); return; } addLink(); };
-$("#addLink2").onclick = addLink;
+$("#addLink").onclick = () => { S.lkOpen = true; drawLinks(); $("#linkBox").scrollIntoView({block:"nearest"}); if (!S.subs.length) setTimeout(() => $("#lkN").select(), 30); };
+$("#addLink2").onclick = () => addLink($("#lkN").value);
+$("#lkN").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); addLink(e.target.value); } });
 $("#linkList").addEventListener("input", e => {
   const row = e.target.closest(".lkrow"), k = e.target.dataset.k; if (!row || !k) return;
   S.subs[Number(row.dataset.i)][k] = e.target.value;
@@ -2642,7 +2695,8 @@ $("#linkList").addEventListener("click", e => {
 });
 const nowLocal = () => { const d = new Date(); return `${iso(d)}T${pad(d.getHours())}:${pad(d.getMinutes())}`; };
 function drawLinks(){
-  const box = $("#linkBox"); box.hidden = !S.subs.length || S.kind !== "case";
+  const box = $("#linkBox"); box.hidden = !(S.subs.length || S.lkOpen) || S.kind !== "case";
+  if ($("#lkLbl")) $("#lkLbl").textContent = S.subs.length ? "再加" : "共連件";
   $("#addLink").textContent = S.subs.length ? `連件 ${S.subs.length + 1}` : "＋ 連件";
   $("#linkList").innerHTML = S.subs.map((x, i) => { const sc = SECMAP.get(String(x.sec || ""));
     return `<div class="lkrow" data-i="${i}">
@@ -2655,10 +2709,15 @@ function drawLinks(){
       <button class="rowbtn" type="button" data-act="del" aria-label="移除第 ${i + 2} 件">✕</button>
       <span class="lksec${x.sec && !sc ? " bad" : ""}">${x.sec ? (sc ? `${esc(sc.town)}・${esc(sc.name)}` : "查無此段代碼") : "　"}</span></div>`; }).join("");
 }
-function addLink(){
-  S.subs.push({no:"", type:$("#cType").value || S.types[0] || "", sec:$("#cSec").value.trim(), lot:""});
+/* 連件案號遞增：建物（收件字 82）每件 +10，其他（收件字 80、81）每件 +100；沒有收件字時看種類是否含「建物」 */
+const linkStep = () => { const w = $("#cWord").value.trim(); return /^82/.test(w) ? 10 : /^8[01]/.test(w) ? 100 : /建物/.test($("#cType").value) ? 10 : 100; };
+function addLink(n = 1){
+  const count = Math.max(1, Math.min(30, Math.floor(Number(n)) || 1));
+  const last = [$("#cNo").value, ...S.subs.map(x => x.no)].map(x => String(x || "").trim()).filter(Boolean).pop() || "";
+  const base = /^\d+$/.test(last) ? Number(last) : NaN, step = linkStep();
+  for (let i = 1; i <= count; i++) S.subs.push({no:Number.isNaN(base) ? "" : String(base + step * i), type:$("#cType").value || S.types[0] || "", sec:$("#cSec").value.trim(), lot:""});
   drawLinks();
-  const rows = $("#linkList").querySelectorAll(".lkrow"); rows[rows.length - 1]?.querySelector('[data-k="no"]').focus();
+  const rows = $("#linkList").querySelectorAll(".lkrow"); rows[rows.length - count]?.querySelector('[data-k="lot"]').focus();
 }
 async function splitSub(i){
   if (!S.canWrite) { toast("你只有檢視權限"); return; }
@@ -2797,11 +2856,22 @@ $("#vClose").onclick = closeVer;
 $("#vBody").addEventListener("click", e => { if (e.target.id === "vCheck") checkUpdate(true); });
 $("#dSave").onclick = submitDrawer;
 $("#caseForm").onsubmit = e => { e.preventDefault(); submitDrawer(); };
+/* 延期後的新案件不提供刪除，改為「取消延期」；延期的原案件可刪除或取消延期 */
+const delButtons = c => !c ? "" : (c.postponedFrom && c.status !== PP) ? `<button class="btn danger" type="button" id="dCancelPp">取消延期</button>`
+  : `<button class="btn danger" type="button" id="dDelete">刪除</button>${c.status === PP && !isLeave(c) ? ` <button class="btn" type="button" id="dCancelPp">取消延期</button>` : ""}`;
 $("#delWrap").onclick = async e => {
   const id = e.target.id;
+  if (id === "dCancelPp") { const c = S.cases.get(S.editing); $("#delWrap").innerHTML = `<span class="confirm">${c && (c.postponedTo || c.postponedFrom) ? "刪除延期後的新案件，原案件恢復？" : "恢復為一般案件？"}<button class="btn sm danger" type="button" id="dCancelPpYes">取消延期</button><button class="btn sm" type="button" id="dDelNo">保留</button></span>`; return; }
+  if (id === "dCancelPpYes") { const c = S.cases.get(S.editing); closeDrawer(); try { if (await cancelLocalPp(c)) toast("已取消延期"); } catch(err){ writeFailed(err); } return; }
   if (id === "dDelete") $("#delWrap").innerHTML = `<span class="confirm">確定刪除這筆？<button class="btn sm danger" type="button" id="dDelYes">刪除</button><button class="btn sm" type="button" id="dDelNo">保留</button></span>`;
-  else if (id === "dDelNo") $("#delWrap").innerHTML = `<button class="btn danger" type="button" id="dDelete">刪除</button>`;
-  else if (id === "dDelYes") { const cid = S.editing; closeDrawer(); try { await deleteCase(cid); toast("已刪除"); } catch(err){ writeFailed(err); } }
+  else if (id === "dDelNo") $("#delWrap").innerHTML = delButtons(S.cases.get(S.editing));
+  else if (id === "dDelYes") { const cid = S.editing, gone = S.cases.get(cid); closeDrawer();
+    try {
+      await deleteCase(cid);
+      const nxt = gone && gone.postponedTo && S.cases.get(gone.postponedTo);   // 刪的是延期原案件：新案件不再記錄來源
+      if (nxt) { const n = {...nxt}; ["postponedFrom","postponedFromDate","postponedFromTime"].forEach(k => delete n[k]); await saveCase(n); }
+      toast("已刪除");
+    } catch(err){ writeFailed(err); } }
 };
 
 $("#mPick").onchange = () => { const k = $("#mPick").value; if (k) openMonth(k); };
