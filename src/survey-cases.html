@@ -349,6 +349,26 @@ td.note{white-space:pre-line;min-width:140px;max-width:260px;color:var(--ink-2)}
 .f.full{grid-column:1/-1}
 .f>label,.f>.lb{font-size:11.5px;color:var(--ink-3);letter-spacing:.1em;font-weight:600}
 .f .hint{font-size:12px;color:var(--ink-2)}
+.dtw{position:relative;display:flex;align-items:center;min-width:0}
+.dtw .in{padding-right:34px}
+.in.dt.bad{border-color:#d33;box-shadow:0 0 0 3px rgba(221,51,51,.15)}
+.dtb{position:absolute;right:3px;top:50%;transform:translateY(-50%);border:0;background:none;padding:5px 6px;border-radius:6px;color:var(--ink-2);cursor:pointer;line-height:0}
+.dtb:hover{background:var(--line-2)}
+.dtpop{position:fixed;z-index:2000;background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.18);padding:10px;width:252px;font-family:var(--f-num)}
+.dtpop .hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;font-weight:700}
+.dtpop .hd button{border:1px solid var(--line);background:var(--surface);border-radius:6px;width:28px;height:28px;cursor:pointer}
+.dtpop .g{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;text-align:center;font-size:13px}
+.dtpop .g span{color:var(--ink-2);font-size:11px;padding:3px 0}
+.dtpop .g button{border:0;background:none;border-radius:6px;padding:6px 0;cursor:pointer;color:inherit;font:inherit}
+.dtpop .g button:hover{background:var(--line-2)}
+.dtpop .g button.o{opacity:.35}
+.dtpop .g button.w{color:#c0392b}
+.dtpop .g button.t{outline:1px solid var(--gnss)}
+.dtpop .g button.s{background:var(--ink);color:var(--bg)}
+.dsty{display:flex;gap:10px;flex-wrap:wrap}
+.dsty label{flex:1;min-width:180px;display:flex;gap:10px;align-items:flex-start;border:1px solid var(--line);border-radius:10px;padding:12px;cursor:pointer}
+.dsty label:has(input:checked){border-color:var(--gnss);box-shadow:0 0 0 3px var(--gnss-soft)}
+.dsty b{display:block}.dsty small{color:var(--ink-2)}
 .seg{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
 .seg button{flex:1;border:0;background:var(--surface);padding:8px 0;font-family:var(--f-num);font-weight:600}
 .seg button+button{border-left:1px solid var(--line)}
@@ -702,6 +722,16 @@ tbody tr.insp:hover td{background:color-mix(in srgb,var(--lv-trip) 16%,var(--sur
               </form>
             </div>
           </div>
+          <div class="card">
+            <div class="card-h"><h3>日期格式</h3><span class="meta">只套用在這個瀏覽器</span></div>
+            <div class="card-b">
+              <div class="dsty" id="dateStyle">
+                <label><input type="radio" name="dsty" value="roc"><span><b>民國 <span class="num" data-ex="roc"></span></b><small>可打 1151105、115/11/05、115.11.5</small></span></label>
+                <label><input type="radio" name="dsty" value="ad"><span><b>西元 <span class="num" data-ex="ad"></span></b><small>可打 20261105、2026/11/05</small></span></label>
+              </div>
+              <span class="hint" style="font-size:12px">只改畫面顯示與輸入方式；案件資料、與 Map-Scheduler 同步、匯出 Excel 一律以西元存放，不受影響。延期便簽依公文格式維持民國。</span>
+            </div>
+          </div>
           </div>
         </div>
       </section>
@@ -723,7 +753,7 @@ tbody tr.insp:hover td{background:color-mix(in srgb,var(--lv-trip) 16%,var(--sur
     <div class="f full" id="kindRow"><span class="lb">類別</span>
       <div class="seg" id="kindSeg"><button type="button" data-kind="case" aria-pressed="true">測量案件</button><button type="button" data-kind="leave" aria-pressed="false">休假／出差／上課</button></div>
     </div>
-    <div class="f"><label for="cSched">排定日期</label><input class="in num" type="date" id="cSched"></div>
+    <div class="f"><label for="cSched">排定日期</label><input class="in num dt" id="cSched"></div>
     <div class="f"><label for="cTime">排定時間</label><input class="in num" type="time" id="cTime">
       <div class="qt" data-qt="cTime"><button type="button" data-t="09:00">上午9點</button><button type="button" data-t="10:00">上午10點</button><button type="button" data-t="14:00">下午14點</button></div></div>
     <div class="f full" data-for="leave"><span class="lb">類型</span><div class="seg" id="lvSeg"></div></div>
@@ -734,7 +764,7 @@ tbody tr.insp:hover td{background:color-mix(in srgb,var(--lv-trip) 16%,var(--sur
     <div class="f" data-for="case"><label for="cAgent">代理人</label><input class="in" id="cAgent" list="dlAgents"><span class="hint" id="agentHint"></span></div>
     <div class="f" data-for="case" data-court hidden><label for="cCourtDiv">股別</label><input class="in" id="cCourtDiv" placeholder="例 民信"></div>
     <div class="f" data-for="case" data-court hidden><label for="cCourtNo">發文字號</label><input class="in num" id="cCourtNo" placeholder="例 674"></div>
-    <div class="f" data-for="case"><label for="cRecv">收件日期</label><input class="in num" type="date" id="cRecv"></div>
+    <div class="f" data-for="case"><label for="cRecv">收件日期</label><input class="in num dt" id="cRecv"></div>
     <div class="f" data-for="case"><label for="cWord">收件字</label><input class="in" id="cWord" list="dlWords" placeholder="輸入 81 或從清單選擇" autocomplete="off"></div>
     <div class="f" data-for="case"><label for="cNo">案件編號</label><div class="nofield"><input class="in num" id="cNo" inputmode="numeric"><button class="btn sm" type="button" id="addLink" title="加入連件">＋ 連件</button></div></div>
     <div class="f full" data-for="case" id="linkBox" hidden><span class="lb">連件（共用申請人、代理人、收件、排定日期時間、通知、儀器、辦理情形、備註）</span>
@@ -742,12 +772,12 @@ tbody tr.insp:hover td{background:color-mix(in srgb,var(--lv-trip) 16%,var(--sur
     <div class="f full" data-for="case"><span class="lb">通知狀態</span><div class="seg" id="noticeSeg"></div></div>
     <div class="f full" data-for="case"><span class="lb">儀器（可複選）</span><div class="seg" id="instSeg"></div></div>
     <div class="f full" data-for="case"><span class="lb">辦理情形</span><div class="stgrid" id="statusGrid"></div></div>
-    <div class="f" data-for="case" data-st="現場抓點" hidden><label for="cInspDate">現場抓點日期</label><input class="in num" type="date" id="cInspDate"><span class="hint">會排在那天的行事曆與排程表上</span></div>
+    <div class="f" data-for="case" data-st="現場抓點" hidden><label for="cInspDate">現場抓點日期</label><input class="in num dt" id="cInspDate"><span class="hint">會排在那天的行事曆與排程表上</span></div>
     <div class="f" data-for="case" data-st="現場抓點" hidden><label for="cInspTime">現場抓點時間</label><input class="in num" type="time" id="cInspTime"><div class="qt" data-qt="cInspTime"><button type="button" data-t="09:00">上午9點</button><button type="button" data-t="14:00">下午14點</button></div></div>
-    <div class="f" data-for="case" data-st="擴大檢測" hidden><label for="cExpDate">擴大檢測日期</label><input class="in num" type="date" id="cExpDate"><span class="hint">原案件留作紀錄，另複製一筆到新日期</span></div>
+    <div class="f" data-for="case" data-st="擴大檢測" hidden><label for="cExpDate">擴大檢測日期</label><input class="in num dt" id="cExpDate"><span class="hint">原案件留作紀錄，另複製一筆到新日期</span></div>
     <div class="f" data-for="case" data-st="擴大檢測" hidden><label for="cExpTime">擴大檢測時間</label><input class="in num" type="time" id="cExpTime"><div class="qt" data-qt="cExpTime"><button type="button" data-t="09:00">上午9點</button><button type="button" data-t="14:00">下午14點</button></div></div>
     <div class="f full" data-for="case" data-st="延期" hidden><label for="cPpReason">延期理由</label><input class="in" id="cPpReason" list="dlPpReasons" placeholder="選擇或輸入，例 當日下雨" autocomplete="off"></div>
-    <div class="f" data-for="case" data-st="延期" data-pp-date hidden><label for="cPpDate">延期日期（可先不填）</label><input class="in num" type="date" id="cPpDate"><span class="hint">不填的話會提醒「尚未排定延期日期」</span></div>
+    <div class="f" data-for="case" data-st="延期" data-pp-date hidden><label for="cPpDate">延期日期（可先不填）</label><input class="in num dt" id="cPpDate"><span class="hint">不填的話會提醒「尚未排定延期日期」</span></div>
     <div class="f" data-for="case" data-st="延期" data-pp-date hidden><label for="cPpTime">延期時間</label><input class="in num" type="time" id="cPpTime"><div class="qt" data-qt="cPpTime"><button type="button" data-t="09:00">上午9點</button><button type="button" data-t="14:00">下午14點</button></div></div>
     <div class="f full" data-for="case" data-st="延期" hidden><div class="toolbar"><button class="btn" type="button" id="btnNote">📄 產生延期便簽（A4）</button><span class="hint">依目前填的內容產生，可直接列印呈核</span></div></div>
     <div class="f" data-for="case" id="stampRow" hidden><label for="cStampAt" id="stampLbl">辦理時間（會寫入備註，可修改）</label><input class="in num" type="datetime-local" id="cStampAt"><div class="qt" data-qt="cStampAt"><button type="button" data-t="09:00">上午9點</button><button type="button" data-t="14:00">下午14點</button></div><span class="hint" id="corrInfo" hidden></span></div>
@@ -864,12 +894,18 @@ tbody tr.insp:hover td{background:color-mix(in srgb,var(--lv-trip) 16%,var(--sur
 (() => {
 const BUILD = "artifact";
 const TEST_BUILD = false; /* 打包測試版時改為 true：使用獨立的資料，不影響正式版 */
-const VERSION = "3.19.1";
+const VERSION = "3.20.0";
 /* 離線版檢查更新：讀取 GitHub 公開倉庫的版本檔，新版本以 zip 提供下載 */
 const UPDATE_URL = "https://raw.githubusercontent.com/gn01918004-hub/work-paper/main/release/version.json";
 const DOWNLOAD_URL = "https://github.com/gn01918004-hub/work-paper/raw/main/release/survey-schedule.zip";
 /* 更新紀錄（與 CHANGELOG.md 同步）：第一筆為目前版本 */
 const CHANGELOG = [
+  {v:"3.20.0", date:"2026-11-01", title:"日期可選民國或西元", items:[
+    "常用資料新增「日期格式」，可選民國（預設）或西元，只套用在這個瀏覽器",
+    "行事曆、排程表月份、工作日調整、同步比對的收件日期跟著設定顯示",
+    "日期欄位可直接打字：民國 1151105、115/11/05、115.11.5；西元 20261105、2026/11/05；不存在的日期標紅框並擋下；右邊小日曆也可點選",
+    "案件資料、與 Map-Scheduler 同步、匯出 Excel 一律西元，不受影響；延期便簽依公文格式維持民國",
+  ]},
   {v:"3.19.1", date:"2026-10-31", title:"修正：未連結的延期案件同步", items:[
     "本系統「延期・未排日期」的案件若當初是手動輸入（沒連到 Map-Scheduler），Map-Scheduler 排了延期日期後，不再當成新案件匯入，改在比對視窗提示排入延期日期，套用後兩邊連結起來",
     "已經被當成新案件匯入的，同步時會自動補上延期原案件與新案件的連結",
@@ -1123,6 +1159,76 @@ const parseISO = s => { const [y,m,d] = s.split("-").map(Number); return new Dat
 const addDays = (s, n) => { const d = parseISO(s); d.setDate(d.getDate()+n); return iso(d); };
 const md = s => s ? `${parseISO(s).getMonth()+1}/${pad(parseISO(s).getDate())}` : "";
 const dow = s => DOW[parseISO(s).getDay()];
+
+/* ---------- 日期格式：民國（預設）或西元 ----------
+   只存在這個瀏覽器；案件資料、同步、匯出一律西元 YYYY-MM-DD，只有畫面顯示與輸入跟著設定 */
+const DS_KEY = "survey-date-style";
+let DSTYLE = (() => { try { return localStorage.getItem(DS_KEY) === "ad" ? "ad" : "roc"; } catch { return "roc"; } })();
+const yOf = y => DSTYLE === "roc" ? y - 1911 : y;
+const fmtD = (s, long) => {
+  const m = String(s || "").match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return s || "";
+  return long ? `${DSTYLE === "roc" ? "民國" : ""}${yOf(+m[1])}年${+m[2]}月${+m[3]}日` : `${yOf(+m[1])}/${m[2]}/${m[3]}`;
+};
+/* 民國 1151105、115/11/5、115.11.05、115年11月5日；西元 20261105、2026/11/05、2026-11-05 → 西元 YYYY-MM-DD，認不得回傳 "" */
+function parseD(text){
+  const t = String(text || "").trim().replace(/^民國/, "").replace(/\s+/g, "");
+  let y, mo, d, m;
+  if (/^\d+$/.test(t)) {
+    if (t.length === 8) [y, mo, d] = [+t.slice(0,4), +t.slice(4,6), +t.slice(6)];
+    else if (t.length === 7 || t.length === 6) { const k = t.length - 4; [y, mo, d] = [+t.slice(0,k) + 1911, +t.slice(k,k+2), +t.slice(k+2)]; }
+    else return "";
+  } else if ((m = t.match(/^(\d{2,4})[\/.\-年](\d{1,2})[\/.\-月](\d{1,2})日?$/))) {
+    y = +m[1] + (m[1].length === 4 ? 0 : 1911); mo = +m[2]; d = +m[3];
+  } else return "";
+  const dt = new Date(y, mo - 1, d);
+  return dt.getFullYear() === y && dt.getMonth() === mo - 1 && dt.getDate() === d ? iso(dt) : "";
+}
+/* 日期欄位：type=text，.value 讀出西元、寫入時依設定顯示；舊程式照常用 .value 存取 */
+const VAL = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value");
+const CAL_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>';
+function dtField(el){
+  if (el._dt) return; el._dt = true;
+  el.type = "text"; el.inputMode = "numeric"; el.autocomplete = "off";
+  el.placeholder = DSTYLE === "roc" ? "例 1151105" : "例 20261105";
+  el.title = DSTYLE === "roc" ? "可打 1151105、115/11/05、115.11.5" : "可打 20261105、2026/11/05";
+  Object.defineProperty(el, "value", {configurable:true,
+    get(){ return parseD(VAL.get.call(this)); },
+    set(v){ VAL.set.call(this, v ? fmtD(String(v).slice(0,10)) : ""); this.classList.remove("bad"); }});
+  el.addEventListener("input", () => { const t = VAL.get.call(el).trim(); el.classList.toggle("bad", !!t && !parseD(t)); });
+  el.addEventListener("blur", () => { const p = parseD(VAL.get.call(el)); if (p) VAL.set.call(el, fmtD(p)); });
+  const w = document.createElement("span"); w.className = "dtw"; el.replaceWith(w); w.append(el);
+  const b = document.createElement("button"); b.type = "button"; b.className = "dtb"; b.tabIndex = -1; b.setAttribute("aria-label", "選擇日期"); b.innerHTML = CAL_SVG;
+  b.addEventListener("click", e => { e.stopPropagation(); dtPop(el); }); w.append(b);
+}
+/* 有打錯的日期就擋下，回傳 true 表示有問題 */
+function dtBad(scope){
+  const bad = [...scope.querySelectorAll("input.dt.bad")].find(x => !x.closest("[hidden]"));
+  if (bad) { toast("日期格式不正確或日期不存在，例 1151105 或 115/11/05"); bad.focus(); }
+  return !!bad;
+}
+let dtCur = null;
+function dtPop(el, month){
+  const pop = $("#dtpop") || Object.assign(document.body.appendChild(document.createElement("div")), {id:"dtpop", className:"dtpop", hidden:true});
+  dtCur = el; const sel = el.value, k = month || (sel || TODAY).slice(0,7), [y, m] = k.split("-").map(Number);
+  const first = new Date(y, m-1, 1), start = new Date(first); start.setDate(1 - first.getDay());
+  let h = `<div class="hd"><button type="button" data-m="-1">‹</button><span>${yOf(y)}年 ${m}月</span><button type="button" data-m="1">›</button></div><div class="g">${[...DOW].map(x => `<span>${x}</span>`).join("")}`;
+  for (let i = 0; i < 42; i++) { const d = new Date(start); d.setDate(start.getDate() + i); const s2 = iso(d), wk = d.getDay() % 6 === 0;
+    h += `<button type="button" data-d="${s2}" class="${d.getMonth() !== m-1 ? "o" : ""}${wk ? " w" : ""}${s2 === TODAY ? " t" : ""}${s2 === sel ? " s" : ""}">${d.getDate()}</button>`; }
+  pop.innerHTML = h + "</div>"; pop.hidden = false; pop.dataset.k = k;
+  const r = el.getBoundingClientRect(), ph = pop.offsetHeight;
+  pop.style.left = Math.max(8, Math.min(r.left, innerWidth - 262)) + "px";
+  pop.style.top = (r.bottom + ph + 6 > innerHeight ? Math.max(8, r.top - ph - 4) : r.bottom + 4) + "px";
+}
+document.addEventListener("click", e => {
+  const pop = $("#dtpop"); if (!pop || pop.hidden) return;
+  if (!pop.contains(e.target)) { pop.hidden = true; return; }
+  const b = e.target.closest("button"); if (!b) return;
+  if (b.dataset.m) { const [y, m] = pop.dataset.k.split("-").map(Number), d = new Date(y, m - 1 + Number(b.dataset.m), 1); dtPop(dtCur, iso(d).slice(0,7)); }
+  else if (b.dataset.d) { dtCur.value = b.dataset.d; pop.hidden = true; dtCur.dispatchEvent(new Event("input", {bubbles:true})); dtCur.dispatchEvent(new Event("change", {bubbles:true})); }
+});
+document.addEventListener("keydown", e => { if (e.key === "Escape" && $("#dtpop") && !$("#dtpop").hidden) { $("#dtpop").hidden = true; e.stopPropagation(); } }, true);
+document.addEventListener("focusin", e => { if (e.target.matches?.("input.dt")) dtField(e.target); });
 const mLabel = k => `${Number(k.slice(5))}月`;
 const isLeave = c => c.kind === "leave";
 const isClosed = c => DONE.has(c.status) || STOPPED.has(c.status) || c.status === PP || c.status === "擴大檢測" || isLeave(c) || customClosed(c.status);
@@ -1252,7 +1358,21 @@ async function runMigrations(){
 }
 const needsNoticeFix = c => c.notice !== "已寄出" && c.notice !== "不需要通知";
 
+function initDateStyle(){
+  document.querySelectorAll("input.dt").forEach(dtField);
+  const box = $("#dateStyle"); if (!box) return;
+  box.querySelectorAll("[data-ex]").forEach(x => { const keep = DSTYLE; DSTYLE = x.dataset.ex; x.textContent = `${fmtD(TODAY)}（${dow(TODAY)}）`; DSTYLE = keep; });
+  box.querySelector(`input[value="${DSTYLE}"]`).checked = true;
+  box.addEventListener("change", e => {
+    const v = e.target.value === "ad" ? "ad" : "roc"; if (v === DSTYLE) return;
+    const vals = [...document.querySelectorAll("input.dt")].map(x => [x, x.value]);   // 換格式前先記住欄位裡的日期
+    DSTYLE = v; try { localStorage.setItem(DS_KEY, v); } catch {}
+    vals.forEach(([x, d]) => { x.value = d; x.placeholder = v === "roc" ? "例 1151105" : "例 20261105"; });
+    render(); toast(`日期改為${v === "roc" ? "民國" : "西元"}顯示`);
+  });
+}
 async function boot(){
+  initDateStyle();
   rebuild(); render(); drawTopo();
   const claude = BUILD === "artifact" ? window.claude : null;
   db = claude && claude.use ? await claude.use("db").catch(() => null) : null;
@@ -1550,7 +1670,7 @@ function renderList(){
     const n = cases.length || 1;
     const cnt = {done:cases.filter(c => DONE.has(c.status)).length, prog:cases.filter(c => !isClosed(c) && !isOver(c)).length, over:cases.filter(isOver).length, pp:cases.filter(c => c.status === PP).length, stop:cases.filter(c => STOPPED.has(c.status)).length};
     mh.innerHTML = `<div class="rng"><b>${fmtDay(S.from)} – ${fmtDay(S.to)}</b><span>${S.from === addDays(TODAY, -SPAN) && S.to === addDays(TODAY, SPAN) ? `今天前後 ${SPAN} 天` : "已載入的日期範圍"}</span></div>
-      <div class="toolbar"><button class="btn sm" type="button" data-act="today">回到今天</button><label class="jump">跳到 <input class="in num" type="date" id="jumpDate" aria-label="跳到日期"></label></div>
+      <div class="toolbar"><button class="btn sm" type="button" data-act="today">回到今天</button><label class="jump">跳到 <input class="in num dt" id="jumpDate" aria-label="跳到日期"></label></div>
       <div class="prog"><div class="tr"><i style="width:${cnt.done/n*100}%;background:var(--ok)"></i><i style="width:${cnt.prog/n*100}%;background:var(--gnss)"></i><i style="width:${cnt.over/n*100}%;background:var(--crit)"></i><i style="width:${cnt.pp/n*100}%;background:var(--warn)"></i><i style="width:${cnt.stop/n*100}%;background:var(--ink-3)"></i></div>
         <div class="lg"><span style="--c:var(--ok)">完成 ${cnt.done}</span><span style="--c:var(--gnss)">進行中 ${cnt.prog}</span><span style="--c:var(--crit)">逾期 ${cnt.over}</span><span style="--c:var(--warn)">延期 ${cnt.pp}</span><span style="--c:var(--ink-3)">撤回／駁回 ${cnt.stop}</span></div></div>
       <button class="btn sm" type="button" data-act="editmonth">調整工作日</button>`;
@@ -1559,7 +1679,7 @@ function renderList(){
 
   let html = "", lastM = "";
   if (!F) html += `<tr class="more"><td colspan="12"><button class="btn sm" type="button" data-more="-1">↑ 顯示更早 ${SPAN} 天</button></td></tr>`;
-  rows.forEach(c => { const m = c.sched.slice(0,7); if (m !== lastM) { html += `<tr class="mrow"><td colspan="12">${m.slice(0,4)} 年 ${Number(m.slice(5))} 月</td></tr>`; lastM = m; } html += rowHTML(c); });
+  rows.forEach(c => { const m = c.sched.slice(0,7); if (m !== lastM) { html += `<tr class="mrow"><td colspan="12">${yOf(+m.slice(0,4))} 年 ${Number(m.slice(5))} 月</td></tr>`; lastM = m; } html += rowHTML(c); });
   if (!F) html += `<tr class="more"><td colspan="12"><button class="btn sm" type="button" data-more="1">↓ 顯示更後 ${SPAN} 天</button></td></tr>`;
   $("#rows").innerHTML = html;
   const us = $("#unsched"); us.hidden = !unsched.length; $("#unschedN").textContent = unsched.length;
@@ -1632,7 +1752,7 @@ function gotoDate(d){
 function renderCal(){
   if (!S.calMonth) S.calMonth = TODAY.slice(0,7);
   const [y,m] = S.calMonth.split("-").map(Number);
-  $("#calTitle").textContent = `${y} 年 ${m} 月`;
+  $("#calTitle").textContent = `${yOf(y)} 年 ${m} 月`;
   const first = new Date(y, m-1, 1), start = new Date(first); start.setDate(1 - first.getDay());
   const bd = byDay();
   let html = [...DOW].map(d => `<div class="dh">週${d}</div>`).join("");
@@ -1790,6 +1910,7 @@ function openDrawer(c, preset = {}){
 function closeDrawer(){ $("#drawer").hidden = true; S.editing = null; if ($("#mdlg").hidden) $("#scrim").hidden = true; }
 const tidy = o => { Object.keys(o).forEach(k => o[k] === undefined && delete o[k]); return o; };
 function collectForm(){
+  if (dtBad($("#drawer"))) return null;
   const base = S.editing ? S.cases.get(S.editing) : null;
   const sched = $("#cSched").value, time = $("#cTime").value, note = $("#cNote").value.trim();
   if (S.kind === "leave") {
@@ -1948,7 +2069,7 @@ function gotoCase(id){
 function openMonth(key){
   S.mEdit = key;
   $("#mPick").value = key; $("#mPick").disabled = false;
-  $("#mTitle").textContent = `調整 ${key.slice(0,4)} 年 ${mLabel(key)}工作日`;
+  $("#mTitle").textContent = `調整 ${yOf(+key.slice(0,4))} 年 ${mLabel(key)}工作日`;
   $("#mSave").textContent = "儲存";
   $("#mDelWrap").innerHTML = S.months[key] ? `<button class="btn danger sm" type="button" id="mDel">恢復預設</button>` : "";
   S.mDays = new Set(daysOf(key));
@@ -2288,7 +2409,7 @@ const subsKey = c => { const l = subsOf(c).map(x => [x.no || "", normType(x.type
 const keySubs = k => k ? k.split("；").map(t => { const [no, type, sec, lot] = t.split("|"); return {no, type, sec, lot}; }) : [];
 const msVals = c => Object.fromEntries(MS_FIELDS.map(([f]) => [f, f === "subs" ? subsKey(c) : String(c[f] ?? "").trim()]));
 const msFieldVal = (f, v) => f === "subs" ? keySubs(v) : v;
-const fieldTxt = (f, v) => !v ? "（空白）" : f === "subs" ? keySubs(v).map(x => `${x.no || ""} ${secOf({sec:x.sec})?.name || x.sec || ""}${x.lot || ""}`.trim()).join("、") : f === "recv" ? `${Number(v.slice(0,4)) - 1911}/${v.slice(5,7)}/${v.slice(8,10)}` : f === "sec" ? `${v}${secOf({sec:v}) ? " " + secOf({sec:v}).name : ""}` : v;
+const fieldTxt = (f, v) => !v ? "（空白）" : f === "subs" ? keySubs(v).map(x => `${x.no || ""} ${secOf({sec:x.sec})?.name || x.sec || ""}${x.lot || ""}`.trim()).join("、") : f === "recv" ? fmtD(v) : f === "sec" ? `${v}${secOf({sec:v}) ? " " + secOf({sec:v}).name : ""}` : v;
 function msToCase(x){
   const n = msNo(x), p = msParseParcel(x.landParcel), tm = msTime(x.scheduledTime);
   const notes = [x.notes || "", !p.ok && x.landParcel ? `地段地號：${x.landParcel}` : "", !tm && x.scheduledTime ? `排件時間：${x.scheduledTime}` : ""].filter(Boolean).join("／");
@@ -2656,7 +2777,7 @@ $("#mhead").onclick = e => {
   else if (t.dataset.act === "today") backToToday();
   else if (t.dataset.act === "clear") { clearFilters(); S.centerOn = TODAY; renderList(); }
 };
-$("#mhead").addEventListener("change", e => { if (e.target.id === "jumpDate" && e.target.value) gotoDate(e.target.value); });
+$("#mhead").addEventListener("change", e => { if (e.target.id === "jumpDate") { dtField(e.target); if (e.target.value) gotoDate(e.target.value); else if (e.target.classList.contains("bad")) toast("日期格式不正確，例 1151105"); } });
 $("#schedScroll").addEventListener("scroll", checkEdges, {passive:true});
 $("#q").oninput = e => { const was = filtering(); S.q = e.target.value; if (was && !filtering()) S.centerOn = TODAY; renderList(); };
 $("#fType").onchange = e => { S.fType = e.target.value; renderList(); };
