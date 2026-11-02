@@ -176,7 +176,16 @@ select.in{width:auto}
 .sched{max-height:calc(100vh - 120px);min-height:380px;overflow:auto}
 .sched thead th{position:sticky;top:0;z-index:2}
 tbody tr.mrow td,tbody tr.mrow:hover td{background:var(--band);color:var(--band-ink);font-family:var(--f-num);font-weight:700;letter-spacing:.08em;padding:7px 12px;font-size:13px;border-left-color:var(--band)}
-tbody tr.mrow,tbody tr.more{cursor:default}
+tbody tr.mrow,tbody tr.more,tbody tr.wrow{cursor:default}
+/* 排程表每週的分隔列：週一到週五、案件數與種類，本週醒目 */
+tbody tr.wrow td,tbody tr.wrow:hover td{background:var(--surface-2);border-top:2px solid var(--line);padding:6px 12px;font-size:12.5px;color:var(--ink-2)}
+tbody tr.wrow .wk{font-family:var(--f-num);font-weight:700;color:var(--ink);margin-right:12px}
+tbody tr.wrow .wtag{display:inline-block;font-family:var(--f-ui);font-size:11px;font-weight:700;letter-spacing:.08em;padding:1px 7px;border-radius:5px;margin-right:8px;background:var(--line-2);color:var(--ink-2)}
+tbody tr.wrow .ws b{color:var(--ink);font-family:var(--f-num)}
+tbody tr.wrow .wt{display:inline-block;margin-left:6px;padding:0 7px;border-radius:999px;background:var(--surface);border:1px solid var(--line);font-size:11.5px}
+tbody tr.wrow.now td,tbody tr.wrow.now:hover td{background:linear-gradient(90deg,var(--tape-soft),var(--surface-2) 70%);border-top-color:var(--tape);box-shadow:inset 4px 0 0 var(--tape)}
+tbody tr.wrow.now .wtag{background:var(--tape);color:#fff}
+tbody tr.wrow.next .wtag{background:var(--gnss-soft);color:var(--ink)}
 tbody tr.more td,tbody tr.more:hover td{text-align:center;padding:10px;background:var(--surface-2)}
 tbody tr.marker td{color:var(--tape-ink);font-weight:600;background:var(--tape-soft)}
 .rng{display:flex;flex-direction:column;gap:2px;min-width:0}
@@ -894,12 +903,16 @@ tbody tr.insp:hover td{background:color-mix(in srgb,var(--lv-trip) 16%,var(--sur
 (() => {
 const BUILD = "artifact";
 const TEST_BUILD = false; /* 打包測試版時改為 true：使用獨立的資料，不影響正式版 */
-const VERSION = "3.20.0";
+const VERSION = "3.21.0";
 /* 離線版檢查更新：讀取 GitHub 公開倉庫的版本檔，新版本以 zip 提供下載 */
 const UPDATE_URL = "https://raw.githubusercontent.com/gn01918004-hub/work-paper/main/release/version.json";
 const DOWNLOAD_URL = "https://github.com/gn01918004-hub/work-paper/raw/main/release/survey-schedule.zip";
 /* 更新紀錄（與 CHANGELOG.md 同步）：第一筆為目前版本 */
 const CHANGELOG = [
+  {v:"3.21.0", date:"2026-11-02", title:"排程表每週分隔", items:[
+    "排程表每週加一列分隔：週一到週五的日期、案件數、未結件數、各種類件數、現場抓點與休假天數",
+    "本週以粉紅色標示「本週」，下週標「下週」、上週標「上週」，捲動瀏覽方式不變",
+  ]},
   {v:"3.20.0", date:"2026-11-01", title:"日期可選民國或西元", items:[
     "常用資料新增「日期格式」，可選民國（預設）或西元，只套用在這個瀏覽器",
     "行事曆、排程表月份、工作日調整、同步比對的收件日期跟著設定顯示",
@@ -1230,6 +1243,7 @@ document.addEventListener("click", e => {
 document.addEventListener("keydown", e => { if (e.key === "Escape" && $("#dtpop") && !$("#dtpop").hidden) { $("#dtpop").hidden = true; e.stopPropagation(); } }, true);
 document.addEventListener("focusin", e => { if (e.target.matches?.("input.dt")) dtField(e.target); });
 const mLabel = k => `${Number(k.slice(5))}月`;
+const wkOf = d => addDays(d, -((parseISO(d).getDay() + 6) % 7));   // 該週的週一
 const isLeave = c => c.kind === "leave";
 const isClosed = c => DONE.has(c.status) || STOPPED.has(c.status) || c.status === PP || c.status === "擴大檢測" || isLeave(c) || customClosed(c.status);
 /* 補正期限：補正日隔日起算第 15 日到期（補正日 + 15 天），到期後再寬限 2 天，之後才算逾期 */
@@ -1677,9 +1691,17 @@ function renderList(){
   }
   mh.hidden = false;
 
-  let html = "", lastM = "";
+  // 每週一個分隔列：一眼看出這週有哪些案件
+  const byWk = new Map();
+  rows.forEach(c => { const w = wkOf(c.sched); if (!byWk.has(w)) byWk.set(w, []); byWk.get(w).push(c); });
+  let html = "", lastM = "", lastW = "";
   if (!F) html += `<tr class="more"><td colspan="12"><button class="btn sm" type="button" data-more="-1">↑ 顯示更早 ${SPAN} 天</button></td></tr>`;
-  rows.forEach(c => { const m = c.sched.slice(0,7); if (m !== lastM) { html += `<tr class="mrow"><td colspan="12">${yOf(+m.slice(0,4))} 年 ${Number(m.slice(5))} 月</td></tr>`; lastM = m; } html += rowHTML(c); });
+  rows.forEach(c => {
+    const m = c.sched.slice(0,7), w = wkOf(c.sched);
+    if (m !== lastM) { html += `<tr class="mrow"><td colspan="12">${yOf(+m.slice(0,4))} 年 ${Number(m.slice(5))} 月</td></tr>`; lastM = m; }
+    if (w !== lastW) { html += weekRowHTML(w, byWk.get(w)); lastW = w; }
+    html += rowHTML(c);
+  });
   if (!F) html += `<tr class="more"><td colspan="12"><button class="btn sm" type="button" data-more="1">↓ 顯示更後 ${SPAN} 天</button></td></tr>`;
   $("#rows").innerHTML = html;
   const us = $("#unsched"); us.hidden = !unsched.length; $("#unschedN").textContent = unsched.length;
@@ -1693,6 +1715,16 @@ function renderList(){
   $("#count").textContent = `${F ? "符合" : "這段期間"} ${cases.length} 件・完成 ${cases.filter(c => DONE.has(c.status)).length}・未結 ${cases.filter(c => !isClosed(c)).length}${unsched.length ? `・未排日期 ${unsched.length} 件` : ""}`;
 
   if (S.centerOn) { const d = S.centerOn; S.centerOn = null; lockNow(); requestAnimationFrame(() => centerDate(d)); }
+}
+function weekRowHTML(w, list){
+  const now = wkOf(TODAY), cs = list.filter(c => c.id && !isLeave(c)), lv = list.filter(c => c.id && isLeave(c)), insp = list.filter(c => c.insp).length;
+  const open = cs.filter(c => !isClosed(c)).length, types = new Map();
+  cs.forEach(c => types.set(c.type || "未分類", (types.get(c.type || "未分類") || 0) + 1));
+  const tag = w === now ? "本週" : w === addDays(now, 7) ? "下週" : w === addDays(now, -7) ? "上週" : "";
+  const sum = cs.length ? `案件 <b>${cs.length}</b> 件${open ? `・未結 <b>${open}</b>` : "・都已結"}` : "沒有案件";
+  const tps = [...types].sort((a,b) => b[1] - a[1]).map(([t, n]) => `<span class="wt">${esc(t)} ${n}</span>`).join("");
+  const lvs = lv.length ? `<span class="wt">${[...new Set(lv.map(c => c.leaveType || "休假"))].join("／")} ${lv.length} 天</span>` : "";
+  return `<tr class="wrow${w === now ? " now" : w === addDays(now, 7) ? " next" : ""}"><td colspan="12"><span class="wk">${tag ? `<b class="wtag">${tag}</b>` : ""}${md(w)}（一）– ${md(addDays(w, 4))}（五）</span><span class="ws">${sum}${tps}${insp ? `<span class="wt">現場抓點 ${insp}</span>` : ""}${lvs}</span></td></tr>`;
 }
 function centerDate(d, flash){
   const sc = $("#schedScroll"), tr = sc.querySelector(`tr[data-d="${d}"]`) || [...sc.querySelectorAll("tr[data-d]")].find(r => r.dataset.d >= d);
