@@ -904,12 +904,16 @@ tbody tr.insp:hover td{background:color-mix(in srgb,var(--lv-trip) 16%,var(--sur
 (() => {
 const BUILD = "artifact";
 const TEST_BUILD = false; /* 打包測試版時改為 true：使用獨立的資料，不影響正式版 */
-const VERSION = "3.22.0";
+const VERSION = "3.22.1";
 /* 離線版檢查更新：讀取 GitHub 公開倉庫的版本檔，新版本以 zip 提供下載 */
 const UPDATE_URL = "https://raw.githubusercontent.com/gn01918004-hub/work-paper/main/release/version.json";
 const DOWNLOAD_URL = "https://github.com/gn01918004-hub/work-paper/raw/main/release/survey-schedule.zip";
 /* 更新紀錄（與 CHANGELOG.md 同步）：第一筆為目前版本 */
 const CHANGELOG = [
+  {v:"3.22.1", date:"2026-11-10", title:"修正：開著過夜日期不會換", items:[
+    "頁面開著過夜、或電腦休眠到隔天再打開時，「今天」會自動換成新的日期（最上方日期、今天的標示、排程表範圍、逾期與補正期限都跟著更新）",
+    "每 30 秒檢查一次，電腦喚醒或切回這個頁面時也會立刻檢查；正在編輯案件時不會打斷，只更新日期",
+  ]},
   {v:"3.22.0", date:"2026-11-04", title:"保持 Map-Scheduler 喚醒", items:[
     "這頁開著、電腦醒著時，每 7～8 分鐘自動檢查一次 Map-Scheduler 的新案件，讓免費主機不休眠，同步時不用再等 1 分鐘",
     "電腦從睡眠醒來、網路恢復或切回這頁時，超過 7 分鐘沒連線就馬上檢查",
@@ -1173,7 +1177,7 @@ const $ = s => document.querySelector(s);
 const esc = v => String(v ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const pad = n => String(n).padStart(2,"0");
 const iso = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
-const TODAY = iso(new Date());
+let TODAY = iso(new Date());   // 會跟著換日更新，見 dayWatch()
 const DOW = "日一二三四五六";
 const parseISO = s => { const [y,m,d] = s.split("-").map(Number); return new Date(y, m-1, d); };
 const addDays = (s, n) => { const d = parseISO(s); d.setDate(d.getDate()+n); return iso(d); };
@@ -1392,6 +1396,21 @@ function initDateStyle(){
     render(); toast(`日期改為${v === "roc" ? "民國" : "西元"}顯示`);
   });
 }
+/* 換日：頁面開著過夜（或電腦休眠到隔天）時，把「今天」更新成新的日期並重畫。
+   每 30 秒檢查一次，電腦喚醒、切回這頁時也立刻檢查 */
+function dayWatch(){
+  const now = iso(new Date());
+  if (now === TODAY) return;
+  const old = TODAY; TODAY = now;
+  if (S.from === addDays(old, -SPAN) && S.to === addDays(old, SPAN)) setRange(TODAY);   // 排程表還停在「昨天前後」就移到今天前後
+  if (S.calMonth === old.slice(0,7)) S.calMonth = TODAY.slice(0,7);                       // 行事曆停在上個月（跨月）就跟著換
+  if ($("#drawer").hidden) S.centerOn = TODAY;                                             // 沒在編輯時，排程表捲回今天
+  rebuild(); render(); drawTopo();
+  toast(`已換日：今天是 ${md(TODAY)}（週${dow(TODAY)}）`);
+}
+setInterval(dayWatch, 30000);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) dayWatch(); });
+addEventListener("focus", dayWatch);
 async function boot(){
   initDateStyle();
   rebuild(); render(); drawTopo();
