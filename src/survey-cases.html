@@ -53,7 +53,7 @@ button{cursor:pointer}
 .brand{display:flex;gap:10px;align-items:center;padding:0 6px}
 .brand svg{flex:none}
 .brand b{display:block;font-size:17px;font-weight:900;letter-spacing:.06em}
-.brand small{display:block;font-family:var(--f-num);font-size:11px;letter-spacing:.18em;color:var(--band-ink-2)}
+.brand small{display:block;font-family:var(--f-num);font-size:11px;letter-spacing:.06em;white-space:nowrap;color:var(--band-ink-2)}
 .nav{display:flex;flex-direction:column;gap:2px}
 .nav button{display:flex;align-items:center;gap:12px;background:none;border:0;color:var(--band-ink-2);padding:10px 12px;border-radius:8px;text-align:left;font-weight:500;position:relative}
 .nav button:hover{background:var(--band-2);color:var(--band-ink)}
@@ -534,6 +534,29 @@ tbody tr.insp:hover td{background:color-mix(in srgb,var(--lv-trip) 16%,var(--sur
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(22px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:9px 18px;border-radius:999px;z-index:40;font-size:13px;box-shadow:var(--shadow)}
 
 /* ---------- narrow ---------- */
+/* 側欄收合（只在寬螢幕）：只留圖示，右邊案件畫面變寬；有狀態要注意時自動展開 */
+.sidetoggle{margin-left:auto;flex:none;width:28px;height:28px;border-radius:7px;border:1px solid var(--band-2);background:none;color:var(--band-ink-2);display:grid;place-items:center;cursor:pointer}
+.sidetoggle:hover{color:var(--band-ink);border-color:var(--band-ink-2)}
+.sidetoggle:disabled{opacity:.35;cursor:not-allowed}
+.sidetoggle svg{width:14px;height:14px;transition:transform .2s}
+@media (min-width:901px){
+  .app.mini{grid-template-columns:68px minmax(0,1fr);background:linear-gradient(90deg,var(--band) 68px,transparent 68px)}
+  .app.mini .side{padding-left:10px;padding-right:10px;align-items:center}
+  .app.mini .brand{flex-direction:column;padding:0}
+  .app.mini .brand div{display:none}
+  .app.mini .sidetoggle{margin:4px 0 0}
+  .app.mini .sidetoggle svg{transform:rotate(180deg)}
+  .app.mini .nav button{font-size:0;gap:0;padding:11px;justify-content:center}
+  .app.mini .nav button[aria-current="page"]::before{left:-10px}
+  .app.mini .nav .badge{position:absolute;top:2px;right:0;font-size:10px;padding:0 5px;line-height:15px}
+  .app.mini .side-foot{align-items:center}
+  .app.mini .store{display:none}
+  .app.mini .sbtn{width:44px;justify-content:center;padding:9px 0;position:relative}
+  .app.mini .sbtn span,.app.mini .sbtn .vnum{display:none}
+  .app.mini .sbtn .abdot{position:absolute;top:5px;right:5px;margin:0}
+  .app.mini .vbtn .vdot{top:4px;right:4px}
+}
+@media (max-width:900px){.sidetoggle{display:none}}
 @media (max-width:900px){
   .app{grid-template-columns:minmax(0,1fr);background:none}
   .side{position:static;height:auto;flex-direction:row;flex-wrap:wrap;align-items:center;gap:10px;padding:12px max(16px,env(safe-area-inset-right,0px)) 12px max(16px,env(safe-area-inset-left,0px))}
@@ -560,6 +583,7 @@ tbody tr.insp:hover td{background:color-mix(in srgb,var(--lv-trip) 16%,var(--sur
     <div class="brand">
       <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true"><path d="M17 4 L31 29 H3 Z" fill="none" stroke="#ff2f7d" stroke-width="2.4" stroke-linejoin="round"/><circle cx="17" cy="20.5" r="3" fill="#2fd0e2"/></svg>
       <div><b>測量案件排程</b><small>Tongsiao Land Office</small></div>
+      <button type="button" class="sidetoggle" id="sideToggle" title="收合側欄" aria-label="收合側欄"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M12.5 4.5 7 10l5.5 5.5"/></svg></button>
     </div>
     <nav class="nav" id="nav">
       <button type="button" data-view="dash" aria-current="page"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="2.5" y="2.5" width="6" height="7" rx="1.5"/><rect x="11.5" y="2.5" width="6" height="4" rx="1.5"/><rect x="2.5" y="12.5" width="6" height="5" rx="1.5"/><rect x="11.5" y="9.5" width="6" height="8" rx="1.5"/></svg>總覽</button>
@@ -904,12 +928,16 @@ tbody tr.insp:hover td{background:color-mix(in srgb,var(--lv-trip) 16%,var(--sur
 (() => {
 const BUILD = "artifact";
 const TEST_BUILD = false; /* 打包測試版時改為 true：使用獨立的資料，不影響正式版 */
-const VERSION = "3.22.1";
+const VERSION = "3.23.0";
 /* 離線版檢查更新：讀取 GitHub 公開倉庫的版本檔，新版本以 zip 提供下載 */
 const UPDATE_URL = "https://raw.githubusercontent.com/gn01918004-hub/work-paper/main/release/version.json";
 const DOWNLOAD_URL = "https://github.com/gn01918004-hub/work-paper/raw/main/release/survey-schedule.zip";
 /* 更新紀錄（與 CHANGELOG.md 同步）：第一筆為目前版本 */
 const CHANGELOG = [
+  {v:"3.23.0", date:"2026-11-16", title:"側欄可收合", items:[
+    "左側欄右上角新增收合按鈕：收合後只留圖示（滑鼠移上去看名稱），右邊案件畫面變寬；會記住，下次打開維持收合",
+    "同步、自動備份出現黃燈時不能收合；收合中出現黃燈會自動展開提醒",
+  ]},
   {v:"3.22.1", date:"2026-11-10", title:"修正：開著過夜日期不會換", items:[
     "頁面開著過夜、或電腦休眠到隔天再打開時，「今天」會自動換成新的日期（最上方日期、今天的標示、排程表範圍、逾期與補正期限都跟著更新）",
     "每 30 秒檢查一次，電腦喚醒或切回這個頁面時也會立刻檢查；正在編輯案件時不會打斷，只更新日期",
@@ -1411,7 +1439,34 @@ function dayWatch(){
 setInterval(dayWatch, 30000);
 document.addEventListener("visibilitychange", () => { if (!document.hidden) dayWatch(); });
 addEventListener("focus", dayWatch);
+/* 側欄收合：狀態都正常（同步、自動備份沒有黃燈）時才能收合；
+   收合中若出現要注意的狀態就自動展開。收合狀態記在這個瀏覽器 */
+const SIDE_KEY = "survey-side-mini";
+function sideAlert(){
+  const warn = id => { const el = $(id); return !!el && el.classList.contains("warn") && !el.closest("[hidden]"); };
+  return warn("#msDot") || warn("#abDot");   // 版本旁的紅點只是「有新的更新內容可看」，收合後一樣看得到，不算要注意的狀態
+}
+function sideApply(){
+  const app = $(".app"), alert = sideAlert(), btn = $("#sideToggle");
+  let want = false; try { want = localStorage.getItem(SIDE_KEY) === "1"; } catch {}
+  const mini = want && !alert;
+  if (app.classList.contains("mini") && !mini && alert) toast("側欄有狀態需要注意，已自動展開");
+  app.classList.toggle("mini", mini);
+  btn.disabled = !mini && alert;
+  btn.title = mini ? "展開側欄" : alert ? "同步或自動備份有狀態需要注意（黃燈），處理完才能收合" : "收合側欄";
+  btn.setAttribute("aria-label", mini ? "展開側欄" : "收合側欄");
+  // 收合時文字隱藏，滑鼠移上去看名稱
+  const label = b => [...b.childNodes].filter(n => n.nodeType === 3).map(n => n.textContent).join("").trim() || (b.querySelector("span:not(.badge)")?.textContent || "").trim();
+  document.querySelectorAll(".nav button, .side-foot .sbtn").forEach(b => { if (mini) { b.dataset.mt = "1"; b.title = label(b); } else if (b.dataset.mt) { delete b.dataset.mt; b.removeAttribute("title"); } });
+}
+$("#sideToggle").addEventListener("click", () => {
+  const mini = $(".app").classList.contains("mini");
+  try { localStorage.setItem(SIDE_KEY, mini ? "0" : "1"); } catch {}
+  sideApply();
+});
+new MutationObserver(sideApply).observe($(".side-foot"), {subtree:true, attributes:true, attributeFilter:["class","hidden"], childList:true});
 async function boot(){
+  sideApply();
   initDateStyle();
   rebuild(); render(); drawTopo();
   const claude = BUILD === "artifact" ? window.claude : null;
