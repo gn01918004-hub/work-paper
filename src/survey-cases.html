@@ -928,12 +928,15 @@ tbody tr.insp:hover td{background:color-mix(in srgb,var(--lv-trip) 16%,var(--sur
 (() => {
 const BUILD = "artifact";
 const TEST_BUILD = false; /* 打包測試版時改為 true：使用獨立的資料，不影響正式版 */
-const VERSION = "3.23.0";
+const VERSION = "3.23.1";
 /* 離線版檢查更新：讀取 GitHub 公開倉庫的版本檔，新版本以 zip 提供下載 */
 const UPDATE_URL = "https://raw.githubusercontent.com/gn01918004-hub/work-paper/main/release/version.json";
 const DOWNLOAD_URL = "https://github.com/gn01918004-hub/work-paper/raw/main/release/survey-schedule.zip";
 /* 更新紀錄（與 CHANGELOG.md 同步）：第一筆為目前版本 */
 const CHANGELOG = [
+  {v:"3.23.1", date:"2026-11-18", title:"延期理由新增選項", items:[
+    "延期理由多一個選項「當日障礙物未清除（現已清除）」，A4 延期便簽會照樣帶入",
+  ]},
   {v:"3.23.0", date:"2026-11-16", title:"側欄可收合", items:[
     "左側欄右上角新增收合按鈕：收合後只留圖示（滑鼠移上去看名稱），右邊案件畫面變寬；會記住，下次打開維持收合",
     "同步、自動備份出現黃燈時不能收合；收合中出現黃燈會自動展開提醒",
@@ -1159,7 +1162,7 @@ const COURTS = ["苗栗地方法院", "臺灣高等法院臺中分院"];
 const isCourt = c => COURT_TYPES.has(c && c.type);
 const appText = c => isCourt(c) ? [c.applicant, c.courtDiv, c.courtNo].filter(Boolean).join("/") : (c.applicant || "");
 /* 延期：辦理情形選「延期」，可先不排日期（會提醒）；延期理由預設三種，也可自行輸入 */
-const PP_REASONS = ["當日下雨", "案情複雜需擴大檢測", "現場會勘時間過長"];
+const PP_REASONS = ["當日下雨", "案情複雜需擴大檢測", "現場會勘時間過長", "當日障礙物未清除（現已清除）"];
 /* 2026 年以前的「延期」是舊資料輸入格式造成的，不算未排延期日期 */
 const PP_SINCE = "2026-01-01";
 const ppPending = c => c.status === PP && !c.postponedTo && !isLeave(c) && !(c.sched && c.sched < PP_SINCE);
