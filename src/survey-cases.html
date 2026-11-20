@@ -928,12 +928,14 @@ tbody tr.insp:hover td{background:color-mix(in srgb,var(--lv-trip) 16%,var(--sur
 (() => {
 const BUILD = "artifact";
 const TEST_BUILD = false; /* 打包測試版時改為 true：使用獨立的資料，不影響正式版 */
-const VERSION = "3.23.1";
-/* 離線版檢查更新：讀取 GitHub 公開倉庫的版本檔，新版本以 zip 提供下載 */
+const VERSION = "3.24.0";
+/* 離線版檢查更新：讀取 GitHub Releases 的最新版（讀不到時改讀倉庫裡的版本檔），新版本固定從 releases/latest/download/survey-cases.html 下載 */
+const RELEASE_API = "https://api.github.com/repos/gn01918004-hub/work-paper/releases/latest";
 const UPDATE_URL = "https://raw.githubusercontent.com/gn01918004-hub/work-paper/main/release/version.json";
-const DOWNLOAD_URL = "https://github.com/gn01918004-hub/work-paper/raw/main/release/survey-schedule.zip";
+const DOWNLOAD_URL = "https://github.com/gn01918004-hub/work-paper/releases/latest/download/survey-cases.html";
 /* 更新紀錄（與 CHANGELOG.md 同步）：第一筆為目前版本 */
 const CHANGELOG = [
+  {v:"3.24.0", date:"2026-11-20", title:"改從 GitHub Releases 更新", items:["新版改在 GitHub Releases 發佈，下載的是單一檔案 survey-cases.html，不用再解壓縮","下載連結固定為 releases/latest/download/survey-cases.html，永遠是最新版","檢查更新改讀最新的 Release；暫時讀不到時會改用原本的版本檔"]},
   {v:"3.23.1", date:"2026-11-18", title:"延期理由新增選項", items:[
     "延期理由多一個選項「當日障礙物未清除（現已清除）」，A4 延期便簽會照樣帶入",
   ]},
@@ -3106,13 +3108,25 @@ $("#scrim").onclick = () => { closeDrawer(); closeMonth(); closeVer(); closeUpd(
 const VSEEN = "survey-version-seen", USKIP = "survey-update-skip";
 const vcmp = (a, b) => { const x = String(a).split(".").map(Number), y = String(b).split(".").map(Number); for (let i = 0; i < 3; i++) { const d = (x[i] || 0) - (y[i] || 0); if (d) return d; } return 0; };
 let updInfo = null;
+/* Release 說明格式：「**標題**　日期」一行，接著「- 項目」 */
+async function latestRelease(signal){
+  const r = await fetch(RELEASE_API, {cache:"no-store", signal, headers:{Accept:"application/vnd.github+json"}});
+  if (!r.ok) throw new Error(r.status);
+  const j = await r.json(), m = /^v?(\d+\.\d+\.\d+)$/.exec(j.tag_name || "");
+  if (!m || j.draft || j.prerelease) throw new Error("bad");
+  const body = String(j.body || ""), t = /\*\*(.+?)\*\*/.exec(body), d = /\d{4}-\d{2}-\d{2}/.exec(body);
+  return {version: m[1], date: d ? d[0] : String(j.published_at || "").slice(0, 10), title: t ? t[1] : "",
+    items: body.split(/\r?\n/).filter(l => /^\s*[-*]\s+/.test(l)).map(l => l.replace(/^\s*[-*]\s+/, "").trim()), download: DOWNLOAD_URL};
+}
 async function checkUpdate(manual){
   if (BUILD === "artifact") return;
   const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 8000);
   try {
-    const r = await fetch(UPDATE_URL + "?t=" + Date.now(), {cache:"no-store", signal:ctl.signal});
-    if (!r.ok) throw new Error(r.status);
-    const info = await r.json();
+    const info = await latestRelease(ctl.signal).catch(async () => {
+      const r = await fetch(UPDATE_URL + "?t=" + Date.now(), {cache:"no-store", signal:ctl.signal});
+      if (!r.ok) throw new Error(r.status);
+      return r.json();
+    });
     if (!info || !info.version) throw new Error("bad");
     let skipped = null; try { skipped = localStorage.getItem(USKIP); } catch(e){}
     if (vcmp(info.version, VERSION) > 0) { if (manual || skipped !== info.version) showUpdate(info); }
@@ -3128,7 +3142,7 @@ function showUpdate(info){
       ${(info.items || []).length ? `<ul>${info.items.map(i => `<li>${esc(i)}</li>`).join("")}</ul>` : ""}
     </section>
     <div><b style="font-size:13px">更新方式</b>
-      <ol class="ustep"><li>建議先按「先下載備份」保存目前的資料</li><li>按「下載新版」，解壓縮下載的 zip</li><li>用新的「測量案件排程.html」取代舊檔，用同一個瀏覽器開啟，原本的資料會保留</li></ol></div>`;
+      <ol class="ustep"><li>建議先按「先下載備份」保存目前的資料</li><li>按「下載新版」，會下載「survey-cases.html」</li><li>用它取代舊檔（可放在原本的資料夾、改捷徑指向它），用同一個瀏覽器開啟，原本的資料會保留</li></ol></div>`;
   $("#uGet").href = /^https:\/\/github\.com\//.test(info.download || "") ? info.download : DOWNLOAD_URL;
   $("#scrim").hidden = false; $("#udlg").hidden = false; $("#uGet").focus();
 }
@@ -3136,7 +3150,7 @@ function closeUpd(){ if ($("#udlg").hidden) return; $("#udlg").hidden = true; if
 $("#uClose").onclick = closeUpd;
 $("#uSkip").onclick = () => { try { localStorage.setItem(USKIP, updInfo.version); } catch(e){} closeUpd(); toast(`已略過 v${updInfo.version}，有更新的版本時會再通知`); };
 $("#uBackup").onclick = exportBackup;
-$("#uGet").addEventListener("click", () => setTimeout(() => toast("下載完成後解壓縮，用新的 html 取代舊檔即可"), 300));
+$("#uGet").addEventListener("click", () => setTimeout(() => toast("下載完成後，用新的 survey-cases.html 取代舊檔即可"), 300));
 function openVer(){
   const [cur, ...past] = CHANGELOG;
   $("#vBody").innerHTML = `<section class="vnew" aria-label="本版新功能">

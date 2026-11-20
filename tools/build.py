@@ -1,10 +1,11 @@
 """把 src/survey-cases.html 打包成離線單檔版，並產生可散佈的 zip。
 
 用法：python3 tools/build.py            （內建 data/seed.json 的資料，並更新 release/）
+      python3 tools/build.py --publish  （同上，再建立 GitHub Release v<版本>，附件 survey-cases.html）
       python3 tools/build.py --no-seed  （第一次開啟為空白）
       python3 tools/build.py --test     （測試版：資料與正式版分開，輸出到 dist/測試版，不更新 release/）
 """
-import json, pathlib, re, sys, zipfile
+import json, pathlib, re, subprocess, sys, tempfile, zipfile
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 SRC = ROOT / "src" / "survey-cases.html"
@@ -14,9 +15,13 @@ OUT_DIR = ROOT / "dist" / "測量案件排程"
 OUT = OUT_DIR / "測量案件排程.html"
 GUIDE = ROOT / "dist" / "使用說明.txt"
 ZIP = ROOT / "dist" / "測量案件排程.zip"
-# 發佈給離線版「檢查更新」用：程式讀 release/version.json，下載 release/survey-schedule.zip
+# 發佈：GitHub Releases 的附件檔名固定為 survey-cases.html（不含版本號），
+# 版本號只寫在 Release 標題與程式內，releases/latest/download/survey-cases.html 永遠是最新版。
+# release/version.json 仍保留，給 v3.23.1 以前的離線版檢查更新用（新版讀不到 Releases 時也會改讀它）
+REPO = "gn01918004-hub/work-paper"
+ASSET = ROOT / "dist" / "survey-cases.html"
 RELEASE = ROOT / "release"
-REPO_RAW = "https://github.com/gn01918004-hub/work-paper/raw/main/release/survey-schedule.zip"
+LATEST_URL = f"https://github.com/{REPO}/releases/latest/download/{ASSET.name}"
 
 CDN_TAG = '<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>'
 
@@ -61,6 +66,8 @@ def build(seed: bool, test: bool = False) -> None:
             z.write(f, f"{folder}/{f.name}")
     print(f"built {out.relative_to(ROOT)} ({out.stat().st_size:,} bytes), {zip_path.relative_to(ROOT)}")
     if seed and not test:
+        ASSET.write_text(doc, encoding="utf-8")
+        print(f"built {ASSET.relative_to(ROOT)}（Release 附件）")
         release(html)
 
 
@@ -77,11 +84,35 @@ def latest_entry(html: str) -> dict:
 def release(html: str) -> None:
     RELEASE.mkdir(exist_ok=True)
     info = latest_entry(html)
-    info["download"] = REPO_RAW
+    info["download"] = LATEST_URL
     (RELEASE / "version.json").write_text(json.dumps(info, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    (RELEASE / "survey-schedule.zip").write_bytes(ZIP.read_bytes())
-    print(f"release v{info['version']}: release/version.json, release/survey-schedule.zip")
+    print(f"release v{info['version']}: release/version.json")
+
+
+def notes(info: dict) -> str:
+    """Release 說明：程式的檢查更新會從這裡讀標題（**粗體**）、日期與「- 項目」。"""
+    return f"**{info['title']}**　{info['date']}\n\n" + "".join(f"- {i}\n" for i in info["items"])
+
+
+def gh(*args: str) -> str:
+    return subprocess.run(["gh", "api", *args], check=True, capture_output=True, text=True).stdout
+
+
+def publish() -> None:
+    """建立 GitHub Release（tag v<版本>，指向目前的 HEAD）並上傳 survey-cases.html。先提交並推送再執行。"""
+    info = latest_entry(SRC.read_text(encoding="utf-8"))
+    tag = "v" + info["version"]
+    head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=ROOT, check=True, capture_output=True, text=True).stdout.strip()
+    with tempfile.NamedTemporaryFile("w", suffix=".md", encoding="utf-8", delete=False) as f:
+        f.write(notes(info))
+    rel = json.loads(gh(f"repos/{REPO}/releases", "-f", f"tag_name={tag}", "-f", f"target_commitish={head}",
+                        "-f", f"name=測量案件排程 {tag}", "-F", f"body=@{f.name}", "-F", "make_latest=true"))
+    gh("--method", "POST", "-H", "Content-Type: text/html; charset=utf-8",
+       f"https://uploads.github.com/repos/{REPO}/releases/{rel['id']}/assets?name={ASSET.name}", "--input", str(ASSET))
+    print(f"published {rel['html_url']}\n下載：{LATEST_URL}")
 
 
 if __name__ == "__main__":
     build(seed="--no-seed" not in sys.argv, test="--test" in sys.argv)
+    if "--publish" in sys.argv:
+        publish()

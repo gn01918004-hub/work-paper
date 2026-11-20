@@ -5,6 +5,14 @@
 
 ---
 
+## v3.24.0　2026-11-20
+
+**改從 GitHub Releases 更新**
+
+- 新版改在 GitHub Releases 發佈，下載的是單一檔案 survey-cases.html，不用再解壓縮
+- 下載連結固定為 releases/latest/download/survey-cases.html，永遠是最新版
+- 檢查更新改讀最新的 Release；暫時讀不到時會改用原本的版本檔
+
 ## v3.23.1　2026-11-18
 
 **延期理由新增選項**

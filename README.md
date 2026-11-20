@@ -74,7 +74,7 @@ data/seed.json          內建常用資料：代理人通訊錄、測量種類�
 vendor/                 SheetJS 0.18.5（Apache-2.0），離線版內嵌用
 tools/build.py          打包離線版
 dist/使用說明.txt       隨離線版附上的使用說明
-release/                最新離線版（survey-schedule.zip）與版本檔（version.json），供離線版檢查更新
+release/                版本檔（version.json），給 v3.23.1 以前的離線版檢查更新用
 ```
 
 ## 打包離線版
@@ -85,13 +85,14 @@ python3 tools/build.py --no-seed  # 連常用資料都不內建，完全空白�
 python3 tools/build.py --test     # 測試版：資料與正式版分開，輸出到 dist/測量案件排程-測試版，不更新 release/
 ```
 
-產出 `dist/測量案件排程/測量案件排程.html` 與 `dist/測量案件排程.zip`，並更新 `release/`。
+產出 `dist/測量案件排程/測量案件排程.html`、`dist/測量案件排程.zip` 與 Release 附件 `dist/survey-cases.html`，並更新 `release/version.json`。
 
 ## 發佈新版本
 
 1. 修改 `src/survey-cases.html`，把 `VERSION` 改成新版本號，並在 `CHANGELOG` 陣列最前面加上這一版的說明（`CHANGELOG.md` 同步更新）
-2. 執行 `python3 tools/build.py`
-3. 提交並推送（包含 `release/`）。已安裝的離線版下次開啟時就會跳出新版通知
+2. 執行 `python3 tools/build.py`，提交並推送（包含 `release/`）
+3. 執行 `python3 tools/build.py --publish`：建立 GitHub Release「測量案件排程 v<版本>」，附件固定為 `survey-cases.html`（檔名不含版本號）
+4. 最新版永遠是 <https://github.com/gn01918004-hub/work-paper/releases/latest/download/survey-cases.html>；已安裝的離線版下次開啟時會讀最新的 Release 跳出新版通知
 
 ## 注意
 
