@@ -2,6 +2,7 @@
 
 用法：python3 tools/build.py            （內建 data/seed.json 的資料，並更新 release/）
       python3 tools/build.py --publish  （同上，再建立 GitHub Release v<版本>，附件 survey-cases.html）
+      python3 tools/build.py --notes    （只印出 Release 說明；推上 main 後由 .github/workflows/release.yml 自動發佈）
       python3 tools/build.py --no-seed  （第一次開啟為空白）
       python3 tools/build.py --test     （測試版：資料與正式版分開，輸出到 dist/測試版，不更新 release/）
 """
@@ -113,6 +114,10 @@ def publish() -> None:
 
 
 if __name__ == "__main__":
+    if "--notes" in sys.argv:   # 只印出 Release 說明（GitHub Actions 用）
+        sys.stdout.reconfigure(encoding="utf-8")
+        print(notes(latest_entry(SRC.read_text(encoding="utf-8"))), end="")
+        sys.exit()
     build(seed="--no-seed" not in sys.argv, test="--test" in sys.argv)
     if "--publish" in sys.argv:
         publish()

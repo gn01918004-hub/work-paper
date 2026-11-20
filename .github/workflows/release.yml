@@ -1,0 +1,59 @@
+# 自動發佈：main 上的 release/version.json 有變動（= 有新版本）時，
+# 打包離線版並建立 GitHub Release「測量案件排程 v<版本>」，附件固定為 survey-cases.html。
+# 該版本的 Release 已存在就略過；也可以在 Actions 頁面手動執行。
+name: 發佈離線版
+
+on:
+  push:
+    branches: [main]
+    paths: [release/version.json]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 讀取版本
+        id: ver
+        run: |
+          ver=$(python3 -c 'import json; print(json.load(open("release/version.json", encoding="utf-8"))["version"])')
+          echo "tag=v$ver" >> "$GITHUB_OUTPUT"
+          if gh release view "v$ver" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "v$ver 的 Release 已存在，略過"
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: 打包
+        if: steps.ver.outputs.exists != 'true'
+        run: |
+          python3 tools/build.py
+          python3 tools/build.py --notes > "$RUNNER_TEMP/notes.md"
+          # 打包出來的 version.json 必須和提交的一致，否則代表 CHANGELOG 與 version.json 沒同步
+          git diff --exit-code release/version.json
+
+      - name: 建立 Release
+        if: steps.ver.outputs.exists != 'true'
+        run: |
+          gh release create "$TAG" dist/survey-cases.html \
+            --title "測量案件排程 $TAG" \
+            --notes-file "$RUNNER_TEMP/notes.md" \
+            --target "$GITHUB_SHA" \
+            --latest
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.ver.outputs.tag }}

@@ -91,7 +91,7 @@ python3 tools/build.py --test     # 測試版：資料與正式版分開，輸�
 
 1. 修改 `src/survey-cases.html`，把 `VERSION` 改成新版本號，並在 `CHANGELOG` 陣列最前面加上這一版的說明（`CHANGELOG.md` 同步更新）
 2. 執行 `python3 tools/build.py`，提交並推送（包含 `release/`）
-3. 執行 `python3 tools/build.py --publish`：建立 GitHub Release「測量案件排程 v<版本>」，附件固定為 `survey-cases.html`（檔名不含版本號）
+3. 推上 main 後，GitHub Actions（`.github/workflows/release.yml`）偵測到 `release/version.json` 變動，會自動打包並建立 GitHub Release「測量案件排程 v<版本>」，附件固定為 `survey-cases.html`（檔名不含版本號）；該版本已發佈就略過。也可以在 Actions 頁面手動執行，或在本機用 `python3 tools/build.py --publish`
 4. 最新版永遠是 <https://github.com/gn01918004-hub/work-paper/releases/latest/download/survey-cases.html>；已安裝的離線版下次開啟時會讀最新的 Release 跳出新版通知
 
 ## 注意
