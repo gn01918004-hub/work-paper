@@ -212,8 +212,8 @@ td.dt .dpill{display:inline-flex;flex-direction:column;align-items:flex-start;ga
 tr.istoday td.dt .dpill{background:linear-gradient(135deg,var(--tape-soft),color-mix(in srgb,var(--tape) 22%,var(--surface)));box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--tape) 55%,transparent);color:var(--tape-ink)}
 tr.istoday td.dt .dpill::before{content:"今天";font-family:var(--f-ui);font-size:10.5px;font-weight:700;letter-spacing:.1em;color:#fff;background:var(--tape);border-radius:4px;padding:0 5px;align-self:flex-start;line-height:16px}
 tr.istoday td.dt .d > span{color:var(--tape-ink)}
-tr.istoday td.dt .tm.odd{display:inline-block;margin-top:2px;padding:1px 7px;border-radius:5px;background:var(--tape);color:#fff;font-weight:700;box-shadow:0 0 0 3px color-mix(in srgb,var(--tape) 22%,transparent)}
-tr.istoday td.dt .tm.odd::after{content:" 特別時段";font-family:var(--f-ui);font-size:10.5px;font-weight:600}
+/* 09:00、14:00 以外的特別時間：只加一圈著色外框，位置和大小不變 */
+td.dt .tm.odd{display:inline-block;margin-left:-5.5px;padding:0 4px;border:1.5px solid var(--tape);border-radius:4px;color:var(--tape-ink);line-height:1.35}
 /* 辦理情形整行底色：顏色在常用資料的「辦理情形」設定（預設 完成／撤回／駁回 淡綠、成圖 淡藍、補正 淡黃） */
 tr.tint td{background:color-mix(in srgb,var(--tint) var(--tint-a,10%),var(--surface))}
 tbody tr.tint:hover td{background:color-mix(in srgb,var(--tint) calc(var(--tint-a,10%) + 7%),var(--surface))}
@@ -815,7 +815,7 @@ tbody tr.insp:hover td{background:color-mix(in srgb,var(--lv-trip) 16%,var(--sur
     <div class="f full" data-for="case" data-st="延期" hidden><div class="toolbar"><button class="btn" type="button" id="btnNote">📄 產生延期便簽（A4）</button><span class="hint">依目前填的內容產生，可直接列印呈核</span></div></div>
     <div class="f" data-for="case" id="stampRow" hidden><label for="cStampAt" id="stampLbl">辦理時間（會寫入備註，可修改）</label><input class="in num" type="datetime-local" id="cStampAt"><div class="qt" data-qt="cStampAt"><button type="button" data-t="09:00">上午9點</button><button type="button" data-t="14:00">下午14點</button></div><span class="hint" id="corrInfo" hidden></span></div>
     <div class="f full" data-for="leave"><label for="cReason">說明</label><input class="in" id="cReason" placeholder="例 特休、選舉講習、縣府上課"></div>
-    <div class="f full"><label for="cNote">備註</label><textarea class="in" id="cNote" rows="3"></textarea></div>
+    <div class="f full"><label for="cNote">備註</label><textarea class="in" id="cNote" rows="3"></textarea><div class="qt"><button type="button" id="cNoteClr" title="清空備註（按儲存才會生效）">清空備註</button></div></div>
   </form>
   <div class="dr-f">
     <div class="toolbar"><span id="delWrap"></span></div>
@@ -928,13 +928,14 @@ tbody tr.insp:hover td{background:color-mix(in srgb,var(--lv-trip) 16%,var(--sur
 (() => {
 const BUILD = "artifact";
 const TEST_BUILD = false; /* 打包測試版時改為 true：使用獨立的資料，不影響正式版 */
-const VERSION = "3.25.0";
+const VERSION = "3.26.0";
 /* 離線版檢查更新：讀取 GitHub Releases 的最新版（讀不到時改讀倉庫裡的版本檔），新版本固定從 releases/latest/download/survey-cases.html 下載 */
 const RELEASE_API = "https://api.github.com/repos/gn01918004-hub/work-paper/releases/latest";
 const UPDATE_URL = "https://raw.githubusercontent.com/gn01918004-hub/work-paper/main/release/version.json";
 const DOWNLOAD_URL = "https://github.com/gn01918004-hub/work-paper/releases/latest/download/survey-cases.html";
 /* 更新紀錄（與 CHANGELOG.md 同步）：第一筆為目前版本 */
 const CHANGELOG = [
+  {v:"3.26.0", date:"2026-11-24", title:"特別時間標示、一鍵清空備註", items:["排程表上 09:00、14:00 以外的時間都會加一圈著色外框標示（不再只限今天），大小位置不變","案件的備註欄下方新增「清空備註」，一鍵清掉，按儲存才會生效"]},
   {v:"3.25.0", date:"2026-11-24", title:"通知狀態改為未處理、延期列視同完成", items:["通知狀態改為「未處理、已寄出、不需要通知」三種，新案件預設「未處理」；原本的「未寄出」與沒設定的都併入「未處理」","未處理以紅色標示，已寄出、不需要通知都以綠色標示","延期案件排定延期日期後，原排定日期那一列視同完成，整列改成和完成一樣的淡綠色"]},
   {v:"3.24.0", date:"2026-11-20", title:"改從 GitHub Releases 更新", items:["新版改在 GitHub Releases 發佈，下載的是單一檔案 survey-cases.html，不用再解壓縮","下載連結固定為 releases/latest/download/survey-cases.html，永遠是最新版","檢查更新改讀最新的 Release；暫時讀不到時會改用原本的版本檔"]},
   {v:"3.23.1", date:"2026-11-18", title:"延期理由新增選項", items:[
@@ -1727,7 +1728,7 @@ function cellsHTML(map, fill = ""){
 }
 const secCell = c => { const s = secOf(c); return `<td>${s ? `${esc(s.name)}<span class="sub">${esc(s.town)}・<span class="num">${esc(c.sec)}</span></span>` : c.sec ? `<span class="num">${esc(c.sec)}</span><span class="sub" style="color:var(--crit)">查無代碼</span>` : ""}</td>`; };
 const ODD_TIME = t => t && t !== "09:00" && t !== "14:00";
-const dateCell = c => `<td class="dt"><div class="dpill">${c.sched ? `<div class="d">${md(c.sched)}<span>週${dow(c.sched)}</span></div>${c.time ? `<small class="tm${c.sched === TODAY && !isLeave(c) && ODD_TIME(c.time) ? " odd" : ""}">${esc(c.time)}</small>` : ""}` : `<span>未排</span>`}</div></td>`;
+const dateCell = c => `<td class="dt"><div class="dpill">${c.sched ? `<div class="d">${md(c.sched)}<span>週${dow(c.sched)}</span></div>${c.time ? `<small class="tm${!isLeave(c) && ODD_TIME(c.time) ? " odd" : ""}">${esc(c.time)}</small>` : ""}` : `<span>未排</span>`}</div></td>`;
 
 function rowHTML(c){
   if (c.insp) { const r = c.ref;
@@ -3172,6 +3173,7 @@ $("#btnVer").onclick = openVer;
 $("#vClose").onclick = closeVer;
 $("#vBody").addEventListener("click", e => { if (e.target.id === "vCheck") checkUpdate(true); });
 $("#dSave").onclick = submitDrawer;
+$("#cNoteClr").onclick = () => { const ta = $("#cNote"); if (!ta.value) return; ta.value = ""; ta.dispatchEvent(new Event("input", {bubbles:true})); ta.focus(); toast("備註已清空，按「儲存」才會生效；不想清空就直接關閉"); };
 $("#caseForm").onsubmit = e => { e.preventDefault(); submitDrawer(); };
 /* 延期後的新案件不提供刪除，改為「取消延期」；延期的原案件可刪除或取消延期 */
 const delButtons = c => !c ? "" : (c.postponedFrom && c.status !== PP) ? `<button class="btn danger" type="button" id="dCancelPp">取消延期</button>`
